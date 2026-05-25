@@ -1,0 +1,2096 @@
+{
+  "paper_context": {
+    "paper_type": "methodological",
+    "epistemic_stance": "empirical",
+    "research_question": "Can a fully non-monotonic transition system based on the non-projective Covington parser, trained with an approximate dynamic oracle using efficiently-computable loss bounds, improve parsing accuracy (and be practical to train) compared to monotonic and static oracles?",
+    "contribution_type": [
+      "algorithm",
+      "training-oracle",
+      "empirical evaluation"
+    ],
+    "contribution_style": [
+      "engineered-system",
+      "analysis-with-bounds",
+      "experimental-comparison"
+    ],
+    "main_claims": [
+      "A fully non-monotonic variant of the non-projective Covington transition system can be defined by allowing arc-creating transitions to overwrite previous heads and enforce single-head and acyclicity by deleting offending arcs.",
+      "Exact loss computation for a non-monotonic non-projective parser is intractable in practice, but tight lower and upper bounds on configuration loss can be computed efficiently (or reasonably efficiently) and used to build an approximate dynamic oracle.",
+      "The proposed non-monotonic approximate dynamic oracle (with several loss-bound variants) yields higher parsing accuracy on a majority of tested CoNLL-X / CoNLL-XI datasets compared to the monotonic dynamic oracle and static oracle.",
+      "The lower-bound loss variant offers a fast oracle (faster training), while a particular upper-bound variant (|U| + nc(A ∪ I)) gives the best average accuracy despite not being the tightest bound.",
+      "This is the first reported implementation of full non-monotonicity for a non-projective parsing algorithm and the first approximate dynamic oracle using close, efficiently-computable loss approximations."
+    ],
+    "expected_evaluation_dimensions": [
+      "parsing accuracy (UAS and LAS) across languages/datasets",
+      "statistical significance of accuracy differences",
+      "tightness of loss approximations (relative error between bounds and exact loss)",
+      "computational efficiency / training time of oracle variants (lower bound vs upper bounds)",
+      "robustness across languages (including failure cases like Basque)",
+      "practicality of integrating oracle into standard learning algorithms (perceptron; potential for neural models)"
+    ],
+    "confidence": "high"
+  },
+  "shared_analysis": {
+    "extracted_claims": [
+      {
+        "claim_id": "C1",
+        "claim_label": "full non-monotonic Covington defined",
+        "claim_text": "A fully non-monotonic variant of the non-projective Covington transition system can be defined by allowing Right-Arc and Left-Arc transitions to always create arcs (i.e., no pre-checks), overwriting previous heads to enforce single-head, and deleting a specific existing arc when a created arc would form a cycle to enforce acyclicity.",
+        "section_anchor": "Section 3 (Non-Monotonic Transition System for the Covington Non-Projective Parser)",
+        "evidence": [
+          "Section 3: \"we allow the Right-Arc and Left-Arc transitions to create arcs between any pair of nodes without restriction. If the node attached as dependent already had a previous head, the existing attachment is discarded...\"",
+          "Section 3: \"if the creation of a new arc x→ y generates a cycle in A, we immediately remove the arc of the form z → x from A (which trivially exists, and is unique due to the singlehead constraint).\"",
+          "Figure 2: transitions showing additions and deletions in A for Left-Arc and Right-Arc."
+        ],
+        "uncertainty_flags": [
+          "Implementation detail: which 'specific' arc z→x is removed is described as \"the arc of the form z → x\" determined by Covington order, but exact formal selection rules may require checking for edge cases.",
+          "Boundary condition: left-to-right parsing order still prevents some repairs (noted in footnote); affects which arc replacements are feasible."
+        ]
+      },
+      {
+        "claim_id": "C2",
+        "claim_label": "exact loss intractable; bounds tractable",
+        "claim_text": "Exact computation of configuration loss for a fully non-monotonic, non-projective Covington parser is not efficiently computable in practice; however, efficiently-computable lower and upper bounds on the loss can be derived and used to build an approximate dynamic oracle.",
+        "section_anchor": "Section 4 (Non-Monotonic Approximate Dynamic Oracle) and Section 5 (Evaluation of the loss bounds)",
+        "evidence": [
+          "Section 4: \"we do not know of an efficient way of obtaining an exact calculation of the loss... Instead, we use upper or lower bounds on the loss...\"",
+          "Section 4: formal lower bound |U(c,tG)| and two upper bounds |U(c,tG)|+npc(A∪I) and |U(c,tG)|+nc(A∪I) are defined.",
+          "Section 5: exhaustive search with pruning used to obtain exact loss for sampled configurations, used to compare bounds."
+        ],
+        "uncertainty_flags": [
+          "The claim about intractability is empirical/heuristic: paper states 'we do not know of an efficient way' rather than a formal hardness proof.",
+          "Computational cost of computing nc(A∪I) and npc(A∪I) depends on number of cycles c (Johnson's algorithm complexity), which may be acceptable in many practical cases; scalability limits are not fully characterized."
+        ]
+      },
+      {
+        "claim_id": "C3",
+        "claim_label": "bounds are tight in practice",
+        "claim_text": "The proposed lower and upper bounds are empirically very tight approximations to the true loss (relative errors below 0.8% across tested datasets), making them suitable for an approximate dynamic oracle.",
+        "section_anchor": "Section 5 (Evaluation of the loss bounds), Table 1",
+        "evidence": [
+          "Section 5: \"the lower and the closer upper bounds are a tight approximation of the loss, with both bounds incurring relative errors below 0.8% in all datasets.\"",
+          "Table 1: per-language average values and relative differences showing small relative error between bounds and exhaustive loss over first 100,000 transitions."
+        ],
+        "uncertainty_flags": [
+          "Evaluation limited to first 100,000 transitions per dataset; may not reflect rare configurations or full training runs.",
+          "Reported averages conceal distributional tails; maximum relative error per configuration not reported here.",
+          "Japanese had exact equality on the sampled configurations; other languages may have higher per-instance discrepancies."
+        ]
+      },
+      {
+        "claim_id": "C4",
+        "claim_label": "oracle variants improve accuracy",
+        "claim_text": "A non-monotonic approximate dynamic oracle (using the proposed loss bounds) yields higher parsing accuracy (UAS and LAS averaged) on a majority of tested CoNLL-X / CoNLL-XI datasets compared to the monotonic dynamic oracle and the static oracle.",
+        "section_anchor": "Section 6 (Experiments), Table 3, Abstract, Introduction",
+        "evidence": [
+          "Section 6: \"the novel non-monotonic oracle improves over the accuracy of the monotonic version on 14 out of 19 languages (0.32 in UAS on average) with the best loss calculation |U|+nc(A∪I)\"",
+          "Table 3: per-language UAS/LAS for static, monotonic dynamic, and three non-monotonic variants; averages reported showing improvements.",
+          "Abstract: \"Experiments ... show that a non-monotonic dynamic oracle outperforms the monotonic version in the majority of languages.\""
+        ],
+        "uncertainty_flags": [
+          "Statistical significance reported for some language-level differences (6 of improvements significant at .05 for best variant), but not for all; global statistical testing across languages not provided.",
+          "Training setup: averaged perceptron, fixed features, 15 iterations; results may depend on these choices.",
+          "One language (Basque) shows a drop in accuracy for non-monotonic variants; robustness across language types may vary."
+        ]
+      },
+      {
+        "claim_id": "C5",
+        "claim_label": "lower bound fastest; specific upper best accuracy",
+        "claim_text": "The lower-bound loss variant provides faster oracle computation (fastest training), while an upper-bound variant using |U(c,tG)| + nc(A ∪ I(c,tG)) gives the best average parsing accuracy despite not being the tightest bound.",
+        "section_anchor": "Section 4 (oracle complexity), Section 6 (Experiments), Conclusion",
+        "evidence": [
+          "Section 4: \"a non-monotonic algorithm that uses the lower bound as loss expression is the fastest option (even faster than the monotonic approach) as the oracle does not need to compute cycles at all, speeding up the training process.\"",
+          "Section 6 / Conclusion: \"one of the loss expressions ... proved very promising by providing the best average accuracy, in spite of being the farthest approximation from the actual loss.\"",
+          "Table 3: |U|+nc(A∪I) variant has highest average UAS/LAS among non-monotonic variants."
+        ],
+        "uncertainty_flags": [
+          "No detailed wall-clock or complexity breakdown for full training comparing all variants is provided (only qualitative statements); 'fastest' is asserted but precise speedups not listed in tables.",
+          "Trade-off between oracle computational cost and final model accuracy is shown only for perceptron/feature setup; may change with different learners (e.g., neural models)."
+        ]
+      },
+      {
+        "claim_id": "C6",
+        "claim_label": "first implementation claim",
+        "claim_text": "This is the first reported implementation of full non-monotonicity for a non-projective parsing algorithm and the first approximate dynamic oracle using close, efficiently-computable loss approximations.",
+        "section_anchor": "Introduction and Conclusion",
+        "evidence": [
+          "Introduction: \"To our knowledge, the presented system is the first nonmonotonic parser that can produce non-projective dependency analyses.\"",
+          "Conclusion: \"To our knowledge, this is the first implementation of non-monotonicity for a nonprojective parsing algorithm, and the first approximate dynamic oracle that uses close, efficiently-computable approximations of the loss.\""
+        ],
+        "uncertainty_flags": [
+          "Statement is a 'to our knowledge' novelty claim; depends on contemporaneous literature coverage up to submission date—possibility of overlooked prior work.",
+          "Novelty of 'approximate dynamic oracle using close bounds' depends on definition of 'close' and what prior approximate oracles existed (some prior work used approximations or limited non-monotonicity)."
+        ]
+      }
+    ],
+    "identified_assumptions": [
+      {
+        "assumption_id": "A1",
+        "assumption_text": "Allowing unrestricted arc creation with immediate deletion of a specific existing arc (z→x) enforces acyclicity correctly and maintains parser consistency (i.e., deterministic update resulting in a valid acyclic single-head graph).",
+        "assumption_type": "operational",
+        "section_anchor": "Section 3 (non-monotonic transitions) and Figure 2",
+        "supporting_evidence": [
+          "Section 3 describes deleting the arc of the form z→x when x→y would create a cycle, and notes uniqueness due to single-head."
+        ],
+        "risk_if_unmet": "If deletion rule can produce ambiguous or invalid updates (e.g., multiple candidate z, or interaction with overlapping cycles), parser may produce invalid states, unexpected behavior, or silent correctness errors affecting both oracle loss calculations and learned model."
+      },
+      {
+        "assumption_id": "A2",
+        "assumption_text": "The set U(c,tG) defined by only the positional conditions (j > max(x,y) or j = max(x,y) & i < min(x,y)) correctly identifies arcs that are truly unreachable even under full non-monotonicity.",
+        "assumption_type": "explicit",
+        "section_anchor": "Section 4 (definition of U(c,tG) for non-monotonic parser)",
+        "supporting_evidence": [
+          "Section 4: redefines U(c,tG) dropping single-head and acyclicity-based conditions because non-monotonicity lets those be repaired."
+        ],
+        "risk_if_unmet": "If there exist additional practical constraints rendering some arcs unreachable despite non-monotonicity (e.g., due to left-to-right order or specific cycle interactions), |U| would underestimate true unreachable arcs and lower bound would be too optimistic, potentially misleading the oracle into accepting transitions that increase real loss."
+      },
+      {
+        "assumption_id": "A3",
+        "assumption_text": "Exhaustive search with pruning over the first 100,000 transitions provides a representative estimate of relative tightness of bounds and of their practical behavior during training.",
+        "assumption_type": "implicit",
+        "section_anchor": "Section 5 (evaluation methodology)",
+        "supporting_evidence": [
+          "Section 5: exhaustive search with pruning applied to first 100,000 transitions and results summarized in Table 1."
+        ],
+        "risk_if_unmet": "If sampled transitions are not representative (rare but important configurations occur later or in longer sentences), reported relative errors may understate worst-case discrepancies and bounds might perform worse during full training or on different corpora."
+      },
+      {
+        "assumption_id": "A4",
+        "assumption_text": "Counting cycles in A ∪ I(c,tG) (nc and npc) via Johnson's algorithm yields meaningful upper bounds in practice even though A∪I may have indegree up to 2 and overlapping cycles.",
+        "assumption_type": "explicit",
+        "section_anchor": "Section 4 (upper bounds) and Section 5 (computation using Johnson 1975)",
+        "supporting_evidence": [
+          "Section 4: derives upper bounds using nc(A∪I) and npc(A∪I) and notes Johnson's algorithm for enumerating cycles (O((n+e)(c+1))).",
+          "Section 5: empirical evaluation shows these bounds approximate loss tightly in sampled data."
+        ],
+        "risk_if_unmet": "If graphs frequently have many overlapping cycles (large c), cycle enumeration becomes expensive and upper-bound computation may not be practical for training at scale; moreover, overlapping cycles could make the bound loose in some cases."
+      },
+      {
+        "assumption_id": "A5",
+        "assumption_text": "Perceptron training with the given feature templates and 15 iterations is an appropriate experimental setup to reveal differences between static, monotonic dynamic, and non-monotonic dynamic oracles.",
+        "assumption_type": "operational",
+        "section_anchor": "Section 6 (Experiments), Table 2 (features)",
+        "supporting_evidence": [
+          "Section 6: reports use of averaged perceptron, 15 iterations, and a fixed set of feature templates listed in Table 2 across languages."
+        ],
+        "risk_if_unmet": "If the learning algorithm or features interact differently with non-monotonicity (e.g., neural models or different iterations produce different relative improvements), experiment conclusions about oracle superiority may not generalize to other learners."
+      },
+      {
+        "assumption_id": "A6",
+        "assumption_text": "Improvements in UAS/LAS observed using the non-monotonic oracle reflect the benefit of non-monotonic training rather than other confounding changes (implementation differences, random seeds, hyperparameters).",
+        "assumption_type": "implicit",
+        "section_anchor": "Section 6 (Experiments), Table 3",
+        "supporting_evidence": [
+          "Section 6: reports five runs with different seeds and averaged accuracies; same setup used for all oracles."
+        ],
+        "risk_if_unmet": "If other uncontrolled variables differ between oracle implementations or runs, observed accuracy differences might be partly due to confounds rather than oracle design, affecting interpretation."
+      },
+      {
+        "assumption_id": "A7",
+        "assumption_text": "Deleting the unique existing head z→x when a new arc x→y would create a cycle is sufficient to restore acyclicity and does not remove gold arcs unnecessarily more often than accounted for in the npc/nc cycle counts.",
+        "assumption_type": "implicit",
+        "section_anchor": "Section 3 (cycle handling) and Section 4 (accounting for arcs removed by cycle-breaking)",
+        "supporting_evidence": [
+          "Section 3: describes deletion rule; Section 4: acknowledges arcs removed by cycle-breaking can be gold and are accounted in upper bounds."
+        ],
+        "risk_if_unmet": "If cycle-breaking frequently deletes gold arcs beyond what npc/nc predict, then loss bounds will undercount actual errors and oracle guidance will be suboptimal."
+      },
+      {
+        "assumption_id": "A8",
+        "assumption_text": "The left-to-right parsing constraint (cannot go backwards) only prevents a leftward arc being repaired with a rightward arc, and otherwise does not materially limit the claimed full non-monotonicity benefits.",
+        "assumption_type": "explicit",
+        "section_anchor": "Footnote and Section 3 introduction",
+        "supporting_evidence": [
+          "Footnote: \"parsing must still proceed in left-to-right order. For this reason, a leftward arc cannot be repaired with a rightward arc...\"",
+          "Introduction: argues Covington's non-deletion of words makes it suitable to exploit non-monotonicity."
+        ],
+        "risk_if_unmet": "If left-to-right ordering imposes more substantial constraints in practice (limiting repairs), then the practical advantage of 'full' non-monotonicity may be reduced."
+      }
+    ],
+    "argument_focus": [
+      "Definition and operationalization of full non-monotonic transitions for Covington parser (Section 3).",
+      "Construction and justification of lower and upper loss bounds for an approximate dynamic oracle (Section 4).",
+      "Empirical evaluation of tightness of bounds via exhaustive search on sampled transitions (Section 5).",
+      "Experimental comparison of parsing accuracy across oracle variants (Section 6).",
+      "Computational trade-offs between bound tightness and oracle runtime (Sections 4 and 6)."
+    ],
+    "contribution_targets": [
+      "Algorithm: the non-monotonic transition rules (Figure 2) modifying Covington parser behavior.",
+      "Training-oracle: the approximate dynamic oracle variants based on |U| (lower), |U|+npc(A∪I) (closer upper), and |U|+nc(A∪I) (upper).",
+      "Empirical evaluation: per-language parsing accuracy (UAS/LAS), and empirical bound tightness over sampled transitions."
+    ],
+    "evaluation_targets": [
+      "Validate correctness and determinism of transition updates when deleting arcs to break cycles (edge cases and invariants).",
+      "Re-evaluate bound tightness over full training runs and on held-out unseen configurations (beyond first 100k transitions).",
+      "Measure wall-clock training time and oracle overhead for each bound variant across datasets and sentence lengths.",
+      "Assess sensitivity to learning algorithm and features (e.g., neural models, different hyperparameters).",
+      "Analyze failure cases and language-specific drops (e.g., Basque) to identify structural causes.",
+      "Quantify per-instance (not just average) errors between bounds and true loss, and characterize worst-case discrepancies."
+    ],
+    "uncertainty_flags": [
+      "No formal intractability proof for exact loss; characterization is empirical/heuristic.",
+      "Bounds evaluation limited to first 100,000 transitions per language; representativeness uncertain.",
+      "Cycle enumeration cost depends on graph cycle count c; scalability not fully quantified for large graphs or corpora.",
+      "Per-language variability (e.g., Basque drop) indicates incomplete understanding of robustness.",
+      "Novelty claims are 'to our knowledge' and depend on contemporaneous literature coverage."
+    ],
+    "chaining_notes": [
+      "Downstream reviewers should test assumptions A1-A4 before attributing performance gains solely to non-monotonicity: verify transition semantics and that U(c,tG) indeed captures only impossible arcs under the implemented non-monotonic rules.",
+      "Reproduce exhaustive loss vs bounds over a wider set of transitions (including later training stages and longer sentences) to confirm C3 generalizes.",
+      "Measure wall-clock times for oracle computations (lower vs upper variants) in full training runs to validate C5 operational claims.",
+      "Investigate Basque and other outlier languages to determine whether data properties or feature/learning interactions undermine non-monotonic benefits.",
+      "When applying to other learners (neural models), re-evaluate both bound tightness and oracle utility; do not assume perceptron results generalize without empirical verification."
+    ]
+  },
+  "specialist_reviews": [
+    {
+      "reviewer_id": "reviewer_1",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "reviewer_label": "GPT",
+      "cognitive_role": "structure_analyst",
+      "epistemic_variant": "logical-coherence-first",
+      "paper_type_assumed": "methodological",
+      "prior_stage_inputs": [
+        "SHARED_ANALYSIS"
+      ],
+      "analytical_summary": "The manuscript proposes a fully non-monotonic variant of the non-projective Covington transition system and an approximate dynamic oracle based on efficiently computable lower and upper bounds on configuration loss. The paper argues (1) definitionally that non-monotonic Left-Arc and Right-Arc transitions that overwrite previous heads and delete a specific arc when cycles arise produce a coherent parser (C1); (2) exact loss calculation is impractical, but three bounds (lower |U|, closer upper |U|+npc, and looser upper |U|+nc) can be computed and used to build an approximate oracle (C2); (3) empirical evaluation on sampled configurations shows these bounds are very tight (<1% relative error) (C3); (4) training with the non-monotonic approximate oracle yields higher average parsing accuracy across CoNLL-X/XI languages versus monotonic dynamic and static oracles (C4); and (5) trade-offs arise: the lower bound is fastest, while the |U|+nc upper bound gives best average accuracy despite being less tight (C5). The logical chain rests on (A) correctness and determinism of the proposed transition semantics, (B) faithfulness of U(c,tG) as capturing unreachable arcs under non-monotonic rules, (C) representativeness of the 100k-transition sampled exhaustive loss comparisons, and (D) experimental setup (perceptron, feature set) being adequate to surface oracle benefits. Strengths include clear operationalization of non-monotonic rules, pragmatic bound derivations, and substantial cross-lingual experiments. Main structural weaknesses/risks are: lack of formal intractability proof, potential edge cases in the arc-deletion rule (which may affect invariants), limited representativeness of the exhaustive-evaluation sample, missing detailed wall-clock/complexity comparisons for full training, and limited analysis of language-specific failures (e.g., Basque). Novelty claims are plausible but hinge on literature coverage. The paper's argument is coherent overall, but several inferential steps require empirical or formal reinforcement (notably A1–A5).",
+      "logical_argument_graph": [
+        "Node 1: Problem statement — greedy transition parsers suffer from irreversible errors; dynamic oracles mitigate errors but existing non-monotonic approaches are partial or projective (Introduction).",
+        "Node 2: Design decision — choose Covington non-projective parser as substrate because its data structures permit revisiting words (Section 2.1 ⇒ Section 3).",
+        "Edge 2->3: From design to operational change — allow Left-Arc and Right-Arc to always create arcs, overwriting previous heads to enforce single-head (C1).",
+        "Node 3: Cycle handling rule — when new arc creates a cycle, remove arc z→x (unique previous head) to restore acyclicity (Section 3).",
+        "Edge 3->4: Consequence — Because operations always allowed, exact computation of configuration loss becomes hard; need bounds (Section 4).",
+        "Node 4: Lower bound construction — U(c,tG) defined by positional constraints (read past) yields a trivial lower bound on loss (C2 lower).",
+        "Node 5: Upper bound constructions — (a) |U| + npc(A∪I) considers only cycles whose broken arc is gold (closer upper); (b) |U| + nc(A∪I) is coarser but simpler (C2 upper).",
+        "Edge 4->6: Oracle construction — use these bounds as approximate dynamic-oracle loss estimates (Algorithm 2).",
+        "Node 6: Empirical validation of bounds — exhaustive search with pruning on first 100k transitions shows bounds have <1% relative error on average (C3, Table 1).",
+        "Edge 6->7: From tight bounds to training — implement non-monotonic approximate oracle variants using bounds and train averaged perceptron models (Section 6).",
+        "Node 7: Empirical parsing results — non-monotonic oracles improve UAS/LAS on majority of languages vs monotonic dynamic and static oracles; specific upper bound |U|+nc gives best average accuracy; lower bound fastest in principle (C4, C5, Table 3).",
+        "Edge 7->Conclusion: Claim of practical benefit and novelty — demonstrates feasibility and improvement; novelty asserted as first full non-monotonic non-projective parser and first approximate dynamic oracle using tight efficiently-computable bounds (C6)."
+      ],
+      "identified_claims": [
+        {
+          "claim_id": "C1",
+          "claim_label": "full non-monotonic Covington defined",
+          "claim_text": "A fully non-monotonic variant of the non-projective Covington transition system can be defined by allowing Right-Arc and Left-Arc transitions to always create arcs (i.e., no pre-checks), overwriting previous heads to enforce single-head, and deleting a specific existing arc when a created arc would form a cycle to enforce acyclicity.",
+          "section_anchor": "Section 3",
+          "evidence": [
+            "Section 3: textual description of always-allowed arc creation and deletion of existing attachment when creating new head.",
+            "Figure 2: formal transition definitions showing additions and deletions in A for Left-Arc and Right-Arc."
+          ],
+          "uncertainty_flags": [
+            "The deletion rule selects 'the arc of the form z→x' relying on uniqueness from single-head; edge cases (e.g., interactions of overlapping cycles or parallel repair sequences) are not fully formalized.",
+            "Footnote and text note left-to-right constraint still forbids certain repairs (leftward repaired by rightward impossible), so 'full' non-monotonicity is qualified."
+          ]
+        },
+        {
+          "claim_id": "C2",
+          "claim_label": "exact loss intractable; bounds tractable",
+          "claim_text": "Exact computation of configuration loss for a fully non-monotonic, non-projective Covington parser is not efficiently computable in practice, but tight lower and upper bounds on configuration loss can be computed efficiently (or reasonably efficiently) and used to build an approximate dynamic oracle.",
+          "section_anchor": "Section 4 and Section 5",
+          "evidence": [
+            "Section 4: statement 'we do not know of an efficient way of obtaining an exact calculation of the loss... Instead, we use upper or lower bounds.'",
+            "Definitions of lower bound |U| and two upper bounds |U|+npc and |U|+nc in Section 4.",
+            "Section 5: empirical methodology comparing bounds to exhaustive loss over sampled transitions."
+          ],
+          "uncertainty_flags": [
+            "No formal proof of intractability is given; phraseology is empirical ('we do not know') rather than formal complexity claim.",
+            "Computational cost of computing nc and npc depends on number of cycles c; worst-case complexity may be high (Johnson's algorithm O((n+e)(c+1)))."
+          ]
+        },
+        {
+          "claim_id": "C3",
+          "claim_label": "bounds are tight in practice",
+          "claim_text": "The proposed lower and upper bounds are empirically very tight approximations to the true loss (relative errors below 0.8% across tested datasets), making them suitable for an approximate dynamic oracle.",
+          "section_anchor": "Section 5, Table 1",
+          "evidence": [
+            "Table 1: shows average bound values and relative differences to exact loss over first 100,000 transitions per language; reported average relative error below 0.8%.",
+            "Section 5: summary statement concluding tightness across datasets."
+          ],
+          "uncertainty_flags": [
+            "Sampling limited to first 100k transitions per dataset; representativeness of later-stage configurations, long sentences, or rare pathological states is not established.",
+            "Only average relative errors reported; tail or per-instance maximum errors not shown."
+          ]
+        },
+        {
+          "claim_id": "C4",
+          "claim_label": "oracle variants improve accuracy",
+          "claim_text": "The proposed non-monotonic approximate dynamic oracle (with several loss-bound variants) yields higher parsing accuracy on a majority of tested CoNLL-X / CoNLL-XI datasets compared to the monotonic dynamic oracle and static oracle.",
+          "section_anchor": "Section 6, Table 3",
+          "evidence": [
+            "Table 3: per-language UAS/LAS for static, monotonic dynamic, and three non-monotonic variants; averages show non-monotonic best on 14/19 languages vs monotonic dynamic.",
+            "Section 6: textual claim and counts of statistically significant improvements (6 significant improvements at .05 for best variant)."
+          ],
+          "uncertainty_flags": [
+            "Statistical testing reported selectively (some language-level significance indicated) but no global multi-language statistical analysis presented.",
+            "Results conditioned on averaged perceptron and specific feature templates; generalization to other learners (e.g., neural models) is hypothesized but untested."
+          ]
+        },
+        {
+          "claim_id": "C5",
+          "claim_label": "lower bound fastest; specific upper best accuracy",
+          "claim_text": "The lower-bound loss variant offers a fast oracle (faster training), while a particular upper-bound variant (|U| + nc(A ∪ I)) gives the best average accuracy despite not being the tightest bound.",
+          "section_anchor": "Section 4 and Section 6",
+          "evidence": [
+            "Section 4: notes lower-bound oracle avoids cycle computation and is 'fastest option (even faster than the monotonic approach)'.",
+            "Section 6/Table 3: |U|+nc variant gives the best average UAS/LAS across datasets."
+          ],
+          "uncertainty_flags": [
+            "No detailed wall-clock or per-iteration timing breakdown for full training comparing all oracle variants is provided; 'fastest' is asserted qualitatively.",
+            "Trade-off conclusions drawn on perceptron experiments might not hold for different learners or scales."
+          ]
+        },
+        {
+          "claim_id": "C6",
+          "claim_label": "first implementation claim",
+          "claim_text": "This is the first reported implementation of full non-monotonicity for a non-projective parsing algorithm and the first approximate dynamic oracle using close, efficiently-computable loss approximations.",
+          "section_anchor": "Introduction and Conclusion",
+          "evidence": [
+            "Intro and Conclusion: explicit 'to our knowledge' novelty statements.",
+            "Citations compare to prior non-monotonic arc-eager (Honnibal et al., Honnibal & Johnson) and monotonic non-projective dynamic oracle (Gómez-Rodríguez & Fernández-González 2015)."
+          ],
+          "uncertainty_flags": [
+            "Novelty depends on contemporaneous literature coverage; 'to our knowledge' acknowledges possible overlooked prior works.",
+            "Definition of 'approximate dynamic oracle using close, efficiently-computable approximations' may overlap with prior approximate schemes depending on definitions of 'close' and 'efficiently-computable'."
+          ]
+        }
+      ],
+      "strengths": [
+        {
+          "title": "Clear operational definition of non-monotonic Covington transitions",
+          "description": "The paper provides precise transition rules (Figure 2) including the arc-addition and cycle-breaking mechanics, enabling reproducibility and formal reasoning about parser behavior.",
+          "evidence": [
+            "Section 3 textual description of always-allowed arc creation and deletion policy.",
+            "Figure 2: explicit transition formulations for Left-Arc and Right-Arc with set operations."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Pragmatic derivation of loss bounds",
+          "description": "The authors derive a logically consistent lower bound and two progressively looser upper bounds that are motivated by parser operations and the cycle-breaking mechanism.",
+          "evidence": [
+            "Section 4 definitions of |U|, |U|+npc, and |U|+nc and proofs/arguments why they bound loss.",
+            "Algorithm 2: integrates bounds into loss computation for oracle."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Comprehensive multilingual empirical evaluation",
+          "description": "The experimental section includes 19 datasets (CoNLL-X and CoNLL-XI), reporting per-language UAS/LAS and statistical annotations, showing consistent average improvements.",
+          "evidence": [
+            "Section 6: experiments across 19 languages, Table 3 reporting UAS/LAS and significance markers.",
+            "Reported averages show non-monotonic variants outperform monotonic dynamic oracle on majority of languages."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Empirical tightness validation via exhaustive search (with pruning)",
+          "description": "Authors implemented exhaustive search with pruning to compute exact loss for sampled configurations and compared bounds, providing direct evidence for bound quality.",
+          "evidence": [
+            "Section 5 describes exhaustive search over first 100k transitions and Table 1 summarizes relative errors below 0.8%.",
+            "Discussion explaining pruning enabled by bounds."
+          ],
+          "confidence": "medium"
+        }
+      ],
+      "concerns": [
+        {
+          "issue_code": "M1",
+          "title": "Ambiguity and edge-case risk in cycle-breaking deletion rule",
+          "description": "The arc-deletion rule ('remove the arc of the form z→x') is stated relying on single-head uniqueness, but interactions with overlapping cycles, concurrent repairs, and parsing order may create ambiguous or invalid update sequences; formal invariants (e.g., ensuring resulting A is always acyclic and single-headed) are not fully proved or exhaustively discussed.",
+          "severity": "major",
+          "evidence": [
+            "Section 3: deletion rule described informally; supporting footnotes mention left-to-right repair limits.",
+            "Shared analysis A1 and A7 flag operational risk if deletion rule has unforeseen interactions."
+          ],
+          "actionable_suggestion": "Provide a formal invariant proof or state machine verification that the transition updates always yield valid acyclic single-head graphs; include worked examples of overlapping-cycle scenarios and explicit handling of tie/choice points.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M2",
+          "title": "Representativeness of exhaustive-loss sampling",
+          "description": "Exact-loss comparisons use exhaustive search with pruning only on the first 100,000 transitions per language; this may bias tightness estimates because later-stage configurations, longer sentences, or rare structures could produce larger discrepancies between bounds and true loss.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 5: explicitly limits exhaustive search to first 100,000 transitions per dataset.",
+            "Shared analysis uncertainty flags note lack of tail/maximum-per-instance error reporting."
+          ],
+          "actionable_suggestion": "Extend exhaustive-loss comparisons to an additional random sample of later training transitions and to long sentences; report distributional statistics for per-configuration relative errors (mean, median, 95th percentile, max).",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M3",
+          "title": "Incomplete computational-efficiency quantification",
+          "description": "Claims that the lower-bound oracle is fastest and that cycle-based upper bounds are more expensive are stated qualitatively; the paper lacks wall-clock measurements, per-epoch oracle overhead, and scaling analysis by sentence length or dataset size.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 4: complexity discussion mentions Johnson's algorithm complexity but no empirical timings.",
+            "Section 6 and Conclusion assert 'fastest' for lower bound but no tables report training time or oracle call cost."
+          ],
+          "actionable_suggestion": "Measure and report wall-clock training time, average time per oracle call, and per-iteration training time for each oracle variant across representative datasets and sentence length bins; include complexity vs. cycle-count analysis.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M4",
+          "title": "Limited analysis of language-specific failures",
+          "description": "Basque (and potentially other languages) exhibits an accuracy drop with non-monotonic variants that is not analyzed; without diagnosis, claims of cross-lingual robustness are incomplete.",
+          "severity": "minor",
+          "evidence": [
+            "Section 6: 'inexplicable drop in accuracy in Basque' noted but not investigated.",
+            "Shared analysis recommends failure-case analysis."
+          ],
+          "actionable_suggestion": "Provide error analysis for Basque (and other outliers): sentence-length stratified scores, qualitative sample of parses showing harmful cycle-breaking, and probe whether feature templates or data properties cause degradation.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M5",
+          "title": "No formal statement/proof of loss intractability",
+          "description": "Paper asserts practical intractability of exact loss computation but offers no formal hardness result; this weakens the argument that approximate oracles are necessary rather than pragmatic.",
+          "severity": "minor",
+          "evidence": [
+            "Section 4: 'we do not know of an efficient way' phrase; absence of complexity-theoretic argument.",
+            "Shared analysis uncertainty flags the lack of formal intractability proof."
+          ],
+          "actionable_suggestion": "Either (a) add a formal complexity argument or reduction showing hardness (if available), or (b) frame the statement explicitly as an empirical/engineering limitation and discuss possible exact algorithms and their practical scaling limits.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M6",
+          "title": "Generality beyond perceptron not demonstrated",
+          "description": "All experiments use averaged perceptron with fixed hand-crafted features; while an application to neural models is suggested, no experiments or ablations indicate whether the oracle benefits carry over to modern learners.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 6: perceptron 15 iterations, Table 2 features; Section 7 suggests neural applicability only as future work.",
+            "Shared analysis lists sensitivity to learner as a risk (A5)."
+          ],
+          "actionable_suggestion": "Add at least a small-scale experiment (or ablation) using a neural classifier (e.g., feedforward NN similar to Chen & Manning) to test whether non-monotonic oracle gains persist, or discuss more explicitly why perceptron results should generalize.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        }
+      ],
+      "comparable_works": [
+        {
+          "citation_label": "Honnibal et al. 2013",
+          "relevance": "Prior non-monotonic transition system (arc-eager) but limited non-monotonicity and projective",
+          "similarity_or_difference": "Similar aim (repair past mistakes) but different parser substrate and restricted non-monotonic actions; current paper extends non-monotonicity to non-projective Covington and full left/right repairs.",
+          "source_trace": "Reference list and Introduction citations in manuscript"
+        },
+        {
+          "citation_label": "Honnibal & Johnson 2015",
+          "relevance": "Improved non-monotonic arc-eager system (Unshift) but still projective/limited",
+          "similarity_or_difference": "Also explores non-monotonicity design trade-offs; differs by remaining projective and limiting deletions; current work claims fuller non-monotonicity for non-projective parser.",
+          "source_trace": "Reference list and Introduction citations in manuscript"
+        },
+        {
+          "citation_label": "Gómez-Rodríguez & Fernández-González 2015",
+          "relevance": "Monotonic dynamic oracle for non-projective Covington; baseline for comparison",
+          "similarity_or_difference": "Provides monotonic dynamic oracle and loss decomposition used as starting point; current work modifies oracle for non-monotonic setting and proposes approximate bounds.",
+          "source_trace": "Section 2.2 and citations throughout manuscript"
+        },
+        {
+          "citation_label": "Goldberg & Nivre 2012/2013",
+          "relevance": "Foundational dynamic-oracle definitions and arc-decomposability framework",
+          "similarity_or_difference": "Underpins loss/reachability definitions; current work adapts those concepts to a non-monotonic context where arc-decomposability fails more dramatically.",
+          "source_trace": "Section 2.2 references and background"
+        }
+      ],
+      "uncertainty_flags": [
+        "No formal hardness proof for exact loss; intractability claim is empirical/heuristic.",
+        "Loss-bound tightness evaluated only on first 100k transitions; representativeness of this sample for full training unclear.",
+        "Cycle enumeration cost depends on cycle count c; scalability to datasets with many cycles not quantified empirically.",
+        "Language-specific negative result (Basque) left unexplained; robustness across languages partially uncertain.",
+        "Novelty claims are 'to our knowledge' and depend on literature coverage at submission time."
+      ],
+      "alternative_interpretations": [
+        "Observed accuracy improvements could derive partly from implementation differences or hyperparameter interactions (e.g., different effective exploration induced by oracle behavior) rather than solely from non-monotonicity; stronger controls or ablations are needed to isolate causal effect.",
+        "The best-performing, but coarser, upper bound (|U|+nc) may act as a form of regularizer that biases the learner to avoid any cycles, which could be more learnable than the theoretically tighter but nuanced npc bound; thus, empirical success might reflect interaction between bound 'noise' and statistical training dynamics, not purely oracle fidelity.",
+        "The small relative errors reported for bounds on average could hide rare but high-impact configurations where bounds mislead the learner during critical repairs; such tail events could explain language-specific degradations."
+      ],
+      "transparency_notes": [
+        "Exact exhaustive-loss procedure described and used for evaluation, but sample selection limited to training beginnings; code or systematic sampling details (random seed, sentence selection) are not provided in manuscript.",
+        "Timing and computational-resources reporting is qualitative; precise machine specs and wall-clock timing per-run are absent.",
+        "Statistical testing reported per-language with significance markers, but exact test details (paired test type, correction for multiple comparisons) are not fully elaborated beyond citing Yeh (2000)."
+      ],
+      "creativity_safeguard": {
+        "lacks_close_analogs": true,
+        "treat_as_innovation_signal": true,
+        "novelty_not_validity_note": "Sparse precedent for full non-monotonicity in non-projective parsers suggests genuine novelty; however, novelty does not guarantee methodological correctness—implementation invariants, bound representativeness, and runtime practicality must be validated before accepting impact claims.",
+        "counterfactual_conditions_for_success": [
+          "If the cycle-deletion rule is formally invariant-preserving (always yields single-head acyclic graphs) and interacts well with left-to-right constraints, then the non-monotonic transitions can provide meaningful repair opportunities and the bounds will be well-founded.",
+          "If exhaustive-sample tightness generalizes to the whole training distribution (including long sentences and late-stage configurations), then approximate oracle guidance will reliably reduce loss and improve learned models across learners.",
+          "If the computational overhead of cycle enumeration (npc/nc) is acceptable in practice (empirically measured) or if lower-bound variants suffice for speed-critical settings, then the approach is practical and adoptable."
+        ]
+      },
+      "novelty_lenses": [
+        {
+          "lens": "operational-novelty",
+          "verdict": "plausibly novel",
+          "rationale": "Combining full non-monotonicity (both arc directions repairable) with a non-projective parser (Covington) and approximate loss bounds appears not to have close precedents in cited literature (which contains restricted non-monotonic arc-eager work and monotonic non-projective dynamic oracle).",
+          "evidence": [
+            "Introduction and Conclusion 'to our knowledge' statements; contrast with Honnibal et al. (2013)/Honnibal & Johnson (2015) and Gómez-Rodríguez & Fernández-González (2015)."
+          ],
+          "uncertainty_flags": [
+            "Depends on completeness of literature coverage and definitions of 'full non-monotonicity' and 'approximate dynamic oracle using close bounds'."
+          ]
+        },
+        {
+          "lens": "theoretical-rigor",
+          "verdict": "partial",
+          "rationale": "The derivations of bounds are logically motivated and argued, but lack formal proofs of key invariants (e.g., guarantee that deletion yields valid acyclic single-head graphs in all cases) and a complexity-theoretic characterization of exact-loss hardness.",
+          "evidence": [
+            "Section 4 bound derivations and Section 3 transition rules; absence of formal proofs for invariants or hardness."
+          ],
+          "uncertainty_flags": [
+            "Could be addressed by supplementary formal statements or proofs."
+          ]
+        },
+        {
+          "lens": "empirical-impact",
+          "verdict": "supporting evidence but conditional",
+          "rationale": "Multilingual improvements and tight sampled-bound validation support practical impact, but limited sampling, lack of full training-time profiling, and one notable language drop temper generalization claims.",
+          "evidence": [
+            "Table 3 cross-lingual UAS/LAS improvements; Table 1 bound tightness on sampled transitions."
+          ],
+          "uncertainty_flags": [
+            "Whether gains persist across learners and scales remains untested."
+          ]
+        }
+      ],
+      "confidence_interval": {
+        "lower": 0.6,
+        "upper": 0.95,
+        "rationale": "I have high confidence in the paper's internal logical coherence and empirical results as presented (bounds tight on sampled data; per-language parsing improvements), but moderate uncertainty remains about generalization of bound tightness to full training, correctness invariants of cycle-handling in all edge cases, and runtime practicality across scales. These factors reduce absolute confidence in broad claims but not in the core contributions."
+      }
+    },
+    {
+      "reviewer_id": "reviewer_2",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "reviewer_label": "GPT",
+      "cognitive_role": "methodology_auditor",
+      "epistemic_variant": "reproducibility-and-validity-first",
+      "paper_type_assumed": "methodological",
+      "prior_stage_inputs": [
+        "SHARED_ANALYSIS_extracted_claims",
+        "SHARED_ANALYSIS_identified_assumptions",
+        "SHARED_ANALYSIS_evaluation_targets",
+        "SHARED_ANALYSIS_uncertainty_flags",
+        "MANUSCRIPT_CONTEXT_sections 1-7, Tables 1-3, Algorithms 1-2, Figure 2"
+      ],
+      "analytical_summary": "The paper defines a fully non-monotonic variant of the Covington non-projective parser by allowing Left-Arc/Right-Arc transitions to always create arcs, resolving single-head and acyclicity constraints by deleting an existing head arc (z→x) when cycles would otherwise occur. Exact configuration loss under these rules is not computed; instead the authors define a lower bound |U(c,tG)| (positional unreachable arcs) and two upper bounds adding cycle-related terms: |U| + npc(A∪I) (problematic cycles) and |U| + nc(A∪I) (all cycles). They build an approximate dynamic oracle using these bounds, evaluate bound tightness via exhaustive search on the first 100k transitions per language (showing relative errors <0.8% on average), and run perceptron-based training across CoNLL-X/XI datasets comparing static, monotonic dynamic, and three non-monotonic oracle variants. Results report that non-monotonic oracles outperform the monotonic dynamic oracle in most languages (14/19 for best variant), that the lower bound oracle is fastest (no cycle computation), and that surprisingly the cruder |U|+nc upper yields the best average accuracy. Key assumptions include correctness/determinism of the deletion rule, representativeness of the 100k-transition bound evaluation, and that perceptron experiments generalize to other learners.",
+      "logical_argument_graph": [
+        "Define non-monotonic transitions (allow arc creation always) -> must enforce single-head & acyclicity via deletions (operational design A1)",
+        "Non-monotonicity increases reachability -> makes exact loss hard to compute (absence of known efficient algorithm)",
+        "Define positional unreachable set U(c,tG) -> gives trivial lower bound on loss (A2)",
+        "Cycles in A∪I produce missed gold arcs when broken -> define upper bounds using nc and npc (A4, A7)",
+        "Exhaustive search with pruning on sampled transitions -> measure tightness of bounds (supports C3, but limited by sampling A3)",
+        "Use bounds as oracle loss during perceptron training -> yields empirical accuracy gains over monotonic and static oracles (C4), with runtime trade-offs (C5)"
+      ],
+      "identified_claims": [
+        {
+          "claim_id": "C1",
+          "claim_label": "full non-monotonic Covington defined",
+          "claim_text": "A fully non-monotonic variant of the non-projective Covington transition system can be defined by allowing arc-creating transitions to overwrite previous heads and enforce single-head and acyclicity by deleting offending arcs.",
+          "section_anchor": "Section 3",
+          "evidence": [
+            "Section 3: description of allowing Left-Arc and Right-Arc to always create arcs and discard previous head.",
+            "Figure 2: transition definitions that add arcs and remove offending arcs to enforce constraints."
+          ],
+          "uncertainty_flags": [
+            "Which exact z→x is removed is described but selection corner cases (multiple potential candidates or interactions with overlapping cycles) need formal clarification.",
+            "Left-to-right parsing order still prevents some repairs (footnote) which affects 'full' non-monotonicity in practice."
+          ]
+        },
+        {
+          "claim_id": "C2",
+          "claim_label": "exact loss intractable; bounds tractable",
+          "claim_text": "Exact computation of configuration loss for a fully non-monotonic, non-projective Covington parser is not efficiently computable in practice, but tight lower and upper bounds on configuration loss can be computed efficiently and used to build an approximate dynamic oracle.",
+          "section_anchor": "Sections 4 and 5",
+          "evidence": [
+            "Section 4: authors state they do not know an efficient exact computation and present lower/upper bounds.",
+            "Section 5: use of Johnson's algorithm and pruning-based exhaustive search to evaluate bounds."
+          ],
+          "uncertainty_flags": [
+            "No formal hardness proof; statement is empirical/heuristic ('we do not know of an efficient way').",
+            "Computational cost of upper bounds depends on cycle count c; practical scalability limits are not fully characterized."
+          ]
+        },
+        {
+          "claim_id": "C3",
+          "claim_label": "bounds are tight in practice",
+          "claim_text": "The proposed lower and upper bounds are empirically very tight approximations to the true loss (relative errors below 0.8% across tested datasets), making them suitable for an approximate dynamic oracle.",
+          "section_anchor": "Section 5, Table 1",
+          "evidence": [
+            "Table 1: average relative differences from bounds to exact loss on sampled 100k transitions per language, showing small errors (<0.8%).",
+            "Section 5: discussion concluding tightness and stating both bounds incur relative errors below 0.8%."
+          ],
+          "uncertainty_flags": [
+            "Evaluation limited to first 100,000 transitions per dataset; representativeness for full training not proven (A3).",
+            "Averages hide distribution tails; maximum per-configuration error / worst-cases not reported."
+          ]
+        },
+        {
+          "claim_id": "C4",
+          "claim_label": "oracle variants improve accuracy",
+          "claim_text": "The proposed non-monotonic approximate dynamic oracle yields higher parsing accuracy on a majority of tested CoNLL-X / CoNLL-XI datasets compared to the monotonic dynamic oracle and static oracle.",
+          "section_anchor": "Section 6, Table 3",
+          "evidence": [
+            "Table 3: per-language UAS/LAS with best non-monotonic variant outperforming monotonic on 14/19 languages and improving over static on many languages.",
+            "Section 6: authors report averages and number of statistically significant improvements (6 at α=0.05 vs monotonic)."
+          ],
+          "uncertainty_flags": [
+            "Statistical testing details are sparse: per-language significance reported, but no multiple-comparison correction or global test across languages.",
+            "Results are for averaged perceptron with fixed features and 15 iterations; generalization to other learners (e.g., neural) is speculative (A5).",
+            "One outlier language (Basque) shows accuracy drop which is not analyzed deeply."
+          ]
+        },
+        {
+          "claim_id": "C5",
+          "claim_label": "lower bound fastest; specific upper best accuracy",
+          "claim_text": "The lower-bound loss variant offers a fast oracle (faster training), while the |U| + nc(A ∪ I) upper-bound variant gives the best average accuracy despite not being the tightest bound.",
+          "section_anchor": "Sections 4 and 6",
+          "evidence": [
+            "Section 4: lower-bound removes need for cycle computation, claimed as the fastest option.",
+            "Section 6/Table 3: |U|+nc variant has the top average UAS/LAS despite not being the tightest bound in Table 1."
+          ],
+          "uncertainty_flags": [
+            "No wall-clock times or detailed complexity-by-dataset measurements for full training runs are reported; 'fastest' is qualitative.",
+            "Trade-off between oracle runtime and final accuracy is shown only for perceptron setup; may differ for other learners or implementations."
+          ]
+        },
+        {
+          "claim_id": "C6",
+          "claim_label": "first implementation claim",
+          "claim_text": "This is the first reported implementation of full non-monotonicity for a non-projective parsing algorithm and the first approximate dynamic oracle using close, efficiently-computable loss approximations.",
+          "section_anchor": "Introduction and Conclusion",
+          "evidence": [
+            "Introduction and Conclusion: explicit 'To our knowledge' statements claiming novelty.",
+            "Comparisons to prior limited non-monotonic arc-eager work (Honnibal et al./Honnibal & Johnson)."
+          ],
+          "uncertainty_flags": [
+            "Novelty claim relies on contemporaneous literature coverage; absence of independent prior-work search in paper leaves some residual risk of oversight.",
+            "Definition of 'close' and 'efficiently-computable' is empirical; other approximate oracles in prior work might be comparable under different metrics."
+          ]
+        }
+      ],
+      "strengths": [
+        {
+          "title": "Clear operationalization of full non-monotonic transitions",
+          "description": "The paper gives an explicit, implementable transition specification (Figure 2) and explains how single-head and acyclicity are enforced via deletions, enabling reproduction of the parser behavior.",
+          "evidence": [
+            "Section 3: textual description of policies for head overwriting and cycle-breaking.",
+            "Figure 2: explicit transition definitions including deletions."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Practical bounds with quantitative evaluation",
+          "description": "Authors propose concrete lower and two upper bounds, implement cycle enumeration with Johnson's algorithm, and empirically compare bounds to exact loss via exhaustive search (with pruning) on sizable samples.",
+          "evidence": [
+            "Section 4: formal definitions of |U|, npc, nc bounds.",
+            "Section 5/Table 1: exhaustive search results over 100k transitions per language reporting relative errors."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Comprehensive empirical comparison on multilingual corpora",
+          "description": "The experiments include 19 CoNLL-X/XI datasets, multiple oracle variants, and averaged runs with seed variation, showing consistent improvements across many languages.",
+          "evidence": [
+            "Section 6/Table 3: per-language UAS/LAS for static, monotonic dynamic, and three non-monotonic variants with five seeds averaged."
+          ],
+          "confidence": "medium"
+        }
+      ],
+      "concerns": [
+        {
+          "issue_code": "M1",
+          "title": "Formal specification and edge-case of cycle-breaking deletion policy",
+          "description": "The deletion rule 'remove z→x' is described but not formalized for all edge-cases (e.g., when multiple arcs could be considered, interactions with overlapping cycles, or ordering effects). Determinism and invariants (validity of resulting A, uniqueness of z) should be formally proven or exhaustively specified.",
+          "severity": "major",
+          "evidence": [
+            "Section 3: 'we immediately remove the arc of the form z → x from A (which trivially exists, and is unique due to the singlehead constraint)' but interactions with indegree-2 in A∪I and overlapping cycles are later noted.",
+            "Section 4: acknowledges A∪I may have indegree up to 2 and overlapping cycles, suggesting complexity in behavior."
+          ],
+          "actionable_suggestion": "Provide a formal lemma/proof that the deletion rule yields a unique, well-defined resulting A for every transition; enumerate corner cases and include pseudocode handling overlapping cycles and multiple potential z candidates.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M2",
+          "title": "Limited scope of exhaustive loss evaluation",
+          "description": "Tightness of bounds is evaluated only on the first 100,000 transitions per dataset. This sample may omit rare but high-impact configurations encountered later (longer sentences, later training iterations), so empirical tightness and worst-case errors remain incompletely characterized.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 5: explicit limitation 'only the first 100,000 transitions'.",
+            "Shared analysis notes averages could mask distributional tails and worst-case errors."
+          ],
+          "actionable_suggestion": "Extend exhaustive or stratified sampling to include later training iterations, longer sentences, and configurations reached when the model is more heavily trained; report distributional statistics (max, percentiles) of bound error, not only means.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M3",
+          "title": "Incomplete runtime/complexity measurements",
+          "description": "Claims about the lower-bound oracle being fastest and cycle-based bounds being slower are qualitative; full-training wall-clock times, per-epoch oracle overhead, and scalability with sentence length/graph cycles are not provided.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 4: complexity discussion mentions Johnson's O((n+e)(c+1)) but no empirical timing tables.",
+            "Section 6/Conclusion: 'lower bound makes the non-monotonic system the fastest' is asserted without quantified measurements."
+          ],
+          "actionable_suggestion": "Report wall-clock training times per oracle variant, include oracle-call time breakdowns, and analyze how cycle count distribution affects runtime across languages/sentence lengths.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M4",
+          "title": "Generality beyond perceptron not established",
+          "description": "All experiments use averaged perceptron with fixed features. It's unclear whether improvements carry to neural learners or other hyperparameter regimes; oracle behavior may interact with model capacity and exploration strategy.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 6: single training setup (averaged perceptron, 15 iterations, Table 2 features).",
+            "Conclusion: mentions possible neural application as future work, not evaluated."
+          ],
+          "actionable_suggestion": "Include at least one experiment with a modern neural greedy parser (or simulated surrogate) using the non-monotonic oracle to assess transferability, or run sensitivity analysis varying iterations/feature sets.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M5",
+          "title": "Insufficient analysis of language-specific failures (Basque)",
+          "description": "Basque shows a consistent drop with non-monotonic oracles; no analysis is presented to identify whether data characteristics, sentence length, cycle prevalence, or feature interactions cause the anomaly.",
+          "severity": "minor",
+          "evidence": [
+            "Section 6: 'inexplicable drop in accuracy in Basque' is noted but not analyzed.",
+            "Table 3: Basque non-monotonic UAS/LAS lower than monotonic and static."
+          ],
+          "actionable_suggestion": "Provide diagnostic analysis for Basque: cycle count distributions, typical sentence lengths, proportion of non-projective arcs, example error cases comparing monotonic vs non-monotonic outputs, and whether training instability or over-repairing occurs.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        }
+      ],
+      "comparable_works": [
+        {
+          "citation_label": "Honnibal et al. 2013 / Honnibal & Johnson 2015",
+          "relevance": "Introduced limited non-monotonic arc-eager parsers (projective) that repair certain past mistakes; contrast to full non-monotonic, non-projective Covington presented here.",
+          "similarity_or_difference": "Similar goal (repair mistakes) but restricted in repair directionality and limited to projective parsing; current paper extends non-monotonicity to non-projective Covington and removes monotonic fallback.",
+          "source_trace": "Manuscript references and Section 1 discussion"
+        },
+        {
+          "citation_label": "Gómez-Rodríguez & Fernández-González 2015",
+          "relevance": "Prior dynamic oracle for (monotonic) non-projective Covington; used as baseline and conceptual foundation for loss decomposition and cycle accounting.",
+          "similarity_or_difference": "Paper extends their monotonic oracle to non-monotonic setting and adapts U and cycle corrections to new semantics.",
+          "source_trace": "Section 2.2 and comparisons in experiments"
+        },
+        {
+          "citation_label": "Johnson 1975 (cycle enumeration)",
+          "relevance": "Algorithm used to enumerate cycles for upper-bound computations; underpins computational cost arguments.",
+          "similarity_or_difference": "Used as off-the-shelf algorithmic component; cost sensitive to number of cycles which authors measure indirectly.",
+          "source_trace": "Section 4 discussion"
+        }
+      ],
+      "uncertainty_flags": [
+        "No formal proof of computational intractability for exact loss; claim is heuristic.",
+        "Representativeness limitation: bounds evaluated on first 100k transitions only; tail/worst-case behavior unreported.",
+        "Runtime claims qualitative: lack of wall-clock/throughput data for full training with each oracle.",
+        "Potential sensitivity of results to learning algorithm (perceptron) and feature set remains untested.",
+        "Novelty claim 'first implementation' depends on literature coverage and definitions of 'close'/'efficient'."
+      ],
+      "alternative_interpretations": [
+        "The accuracy gains may stem partly from implicit regularization introduced by the approximate oracle (e.g., the cruder |U|+nc upper discourages cycles generically), not solely from the ability to perform repairs; hence the observed improvement might reflect a different inductive bias rather than superior exact loss guidance.",
+        "The |U|+nc upper performing best despite being less tight suggests the model benefits from simpler, more conservative penalty signals—an alternative explanation is that the perceptron model cannot exploit finer distinctions signaled by npc, so cruder signals generalize better.",
+        "Basque drop could indicate dataset-specific properties (e.g., annotation conventions or sentence length distributions) that make indiscriminate overwriting harmful; non-monotonicity might overfit noise in certain corpora."
+      ],
+      "transparency_notes": [
+        "Paper provides algorithm pseudocode (Algorithms 1-2) and detailed transition definitions enabling reproduction of parsing behavior; however, implementation details (data structures, cycle enumeration optimizations, and exact deletion selection code) are not included.",
+        "Experimental protocol reports five random-seed runs and averaged metrics, but does not include per-run variances, full statistical methodology (e.g., correction for multiple tests), nor wall-clock timings.",
+        "Dataset splits (CoNLL-X/XI) are standard and cited, enabling dataset-level replication."
+      ],
+      "creativity_safeguard": {
+        "lacks_close_analogs": true,
+        "treat_as_innovation_signal": true,
+        "novelty_not_validity_note": "Although the adaptation of full non-monotonicity to a non-projective parser appears novel in the manuscript, novelty alone does not guarantee correctness; methodological validation (edge-case proofs, extensive bound stress-testing, and runtime quantification) is needed to establish practical utility.",
+        "counterfactual_conditions_for_success": [
+          "If the deletion rule is fully deterministic and preserves invariant that A remains a valid acyclic single-head partial graph, then the transition system is implementable and sound.",
+          "If the cycle counts nc and npc remain small in practice across corpora (keeping Johnson's algorithm feasible), then the upper-bound oracles are practical for training.",
+          "If bound tightness (low relative error) holds across full training distributions (not just first 100k transitions), then approximate oracles will guide learning effectively for long runs and different learners.",
+          "If perceptron improvements generalize to neural greedy parsers—that is, oracle signal translates to gradient-based learners—then the method is broadly impactful."
+        ]
+      },
+      "novelty_lenses": [
+        {
+          "lens": "engineering novelty (system design)",
+          "verdict": "promising",
+          "rationale": "The concrete operationalization of full non-monotonicity for a non-projective parser fills a gap in prior work (which was mostly projective/restricted). The paper delivers an implementable transition system and oracle approximations.",
+          "evidence": [
+            "Figure 2 and Algorithms 1-2 provide explicit transition and loss computation pseudocode.",
+            "Empirical gains across many languages in Table 3."
+          ],
+          "uncertainty_flags": [
+            "Depends on correctness of deletion rule formalization and generalization beyond perceptron experiments."
+          ]
+        },
+        {
+          "lens": "theoretical novelty (analysis with bounds)",
+          "verdict": "moderate",
+          "rationale": "The derivation of lower and two upper bounds tailored to non-monotonic Covington and the argument linking problematic cycles to additional loss is a useful contribution, but lacks formal hardness results and guarantees about approximation tightness beyond sampled empirical evidence.",
+          "evidence": [
+            "Section 4: formal bound inequalities and definitions of npc/nc.",
+            "Section 5: empirical bound tightness reported."
+          ],
+          "uncertainty_flags": [
+            "No worst-case error bounds or complexity guarantees under realistic cycle distributions are provided."
+          ]
+        }
+      ],
+      "confidence_interval": {
+        "lower": 0.6,
+        "upper": 0.9,
+        "rationale": "Confidence reflects high certainty about issues visible from manuscript (formalization gaps, limited runtime/coverage reporting) and medium-high certainty about empirical claims given provided tables. Uncertainty remains about generalization to other learners and rare-case behavior not covered by the 100k-transition sampling."
+      }
+    },
+    {
+      "reviewer_id": "reviewer_3",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "reviewer_label": "GPT",
+      "cognitive_role": "novelty_assessor_incremental",
+      "epistemic_variant": "incremental-contribution lens",
+      "paper_type_assumed": "methodological",
+      "prior_stage_inputs": [
+        "SHARED_ANALYSIS: extracted_claims C1..C6, identified_assumptions A1..A8, evaluation_targets, uncertainty_flags",
+        "MANUSCRIPT_CONTEXT: sections 1..7, Tables 1-3, Figure 2, Algorithm 2, experimental setup (perceptron, 15 iters)",
+        "PRIOR_STAGE_DIGEST: none"
+      ],
+      "analytical_summary": "The paper defines a fully non-monotonic variant of the non-projective Covington transition system by allowing Left-Arc and Right-Arc to always create arcs, resolving single-head violations by overwriting previous heads and resolving cycles by deleting a deterministically chosen existing incoming arc. Exact loss under this flexible parser appears intractable (no efficient exact method known to the authors), so the paper derives a trivially computable lower bound |U(c,tG)| (positional unreadability) and two upper bounds that account for cycles: |U| + npc(A∪I) (problematic-cycle-aware) and |U| + nc(A∪I) (all cycles). These bounds are used to implement approximate dynamic oracles. Empirical diagnostics (exhaustive search with pruning) on the first 100k transitions per dataset show bounds are very tight on average (relative error < 0.8%). Perceptron-trained parsers using the non-monotonic approximate dynamic oracle outperform monotonic dynamic and static oracles on the majority of CoNLL-X/XI languages; one upper-bound variant (|U|+nc) attains best average accuracy while the lower-bound oracle is fastest in oracle computation. The authors frame this as the first full non-monotonic non-projective parser and the first approximate dynamic oracle using close, efficiently-computable loss approximations.",
+      "logical_argument_graph": [
+        "Premise P1: Covington non-projective parser allows revisit of words (no deletion) -> suitable substrate for broader non-monotonicity.",
+        "Design D1: Define non-monotonic Left-Arc/Right-Arc that always create arcs; resolve single-head by discarding previous head; resolve cycles by deleting z→x when x→y would close a cycle (deterministic rule).",
+        "Problem S1: Exact loss computation for such flexible (non-monotonic, non-projective) parser is unknown/empirically intractable.",
+        "Solution S2: Derive a cheap lower bound |U(c,tG)| (positional unreadable arcs) and two upper bounds involving cycle counts: |U|+npc(A∪I) and |U|+nc(A∪I).",
+        "Implementation I1: Build approximate dynamic oracles based on these bounds (lower, pc-upper, upper).",
+        "Evaluation E1: Use exhaustive search with pruning on sampled configurations to measure bound tightness; result: average relative error <0.8%.",
+        "Evaluation E2: Train averaged perceptron with these oracles across CoNLL datasets; result: non-monotonic oracles outperform monotonic/static in majority languages; |U|+nc gives best average accuracy; |U| oracle is fastest to compute.",
+        "Conclusion C1: Full non-monotonic Covington + approximate dynamic oracle is practical and yields empirical accuracy gains; approximate bounds are sufficiently tight for training utility."
+      ],
+      "identified_claims": [
+        {
+          "claim_id": "C1",
+          "claim_label": "full non-monotonic Covington defined",
+          "claim_text": "A fully non-monotonic variant of the non-projective Covington transition system can be defined by allowing Right-Arc and Left-Arc transitions to always create arcs (i.e., no pre-checks), overwriting previous heads to enforce single-head, and deleting a specific existing arc when a created arc would form a cycle to enforce acyclicity.",
+          "section_anchor": "Section 3 (Non-Monotonic Transition System for the Covington Non-Projective Parser)",
+          "evidence": [
+            "Section 3: 'we allow the Right-Arc and Left-Arc transitions to create arcs between any pair of nodes without restriction. If the node attached as dependent already had a previous head, the existing attachment is discarded...'",
+            "Section 3: 'if the creation of a new arc x→ y generates a cycle in A, we immediately remove the arc of the form z → x from A...'",
+            "Figure 2: shows Left-Arc and Right-Arc effects including removals in A."
+          ],
+          "uncertainty_flags": [
+            "Precise formal rule for selecting 'the arc of the form z→x' is described but may leave edge-case ambiguities (e.g., overlapping cycles, multiple possible z).",
+            "Left-to-right parsing order still forbids repairing some leftward/rightward combinations (footnote), so 'full' non-monotonicity is constrained by traversal order."
+          ]
+        },
+        {
+          "claim_id": "C2",
+          "claim_label": "exact loss intractable; bounds tractable",
+          "claim_text": "Exact computation of configuration loss for a fully non-monotonic, non-projective Covington parser is not efficiently computable in practice; however, tight lower and upper bounds on configuration loss can be derived and used to build an approximate dynamic oracle.",
+          "section_anchor": "Section 4 and Section 5",
+          "evidence": [
+            "Section 4: 'we do not know of an efficient way of obtaining an exact calculation of the loss... Instead, we use upper or lower bounds on the loss...'",
+            "Section 4: formal definitions of |U(c,tG)| and two upper bounds using cycle counts.",
+            "Section 5: exhaustive search with pruning used to compute exact loss for sampled configurations to compare bounds."
+          ],
+          "uncertainty_flags": [
+            "No formal complexity/hardness proof is given; claim is empirical/heuristic ('we do not know of an efficient way').",
+            "Computation of cycle-based upper bounds requires enumeration (Johnson's algorithm) whose cost depends on the number of cycles c; scalability and worst-case behavior not fully quantified."
+          ]
+        },
+        {
+          "claim_id": "C3",
+          "claim_label": "bounds are tight in practice",
+          "claim_text": "The proposed lower and upper bounds are empirically very tight approximations to the true loss (relative errors below 0.8% across tested datasets), making them suitable for an approximate dynamic oracle.",
+          "section_anchor": "Section 5, Table 1",
+          "evidence": [
+            "Section 5: 'the lower and the closer upper bounds are a tight approximation of the loss, with both bounds incurring relative errors below 0.8% in all datasets.'",
+            "Table 1: per-language averages and relative differences on first 100,000 transitions."
+          ],
+          "uncertainty_flags": [
+            "Tightness reported on first 100,000 transitions per dataset; representativeness for full training runs, rare configurations, and long sentences is uncertain.",
+            "Reported averages obscure distributional tails and worst-case per-instance errors; maximum or percentile error statistics are not provided."
+          ]
+        },
+        {
+          "claim_id": "C4",
+          "claim_label": "oracle variants improve accuracy",
+          "claim_text": "The proposed non-monotonic approximate dynamic oracle (with several loss-bound variants) yields higher parsing accuracy on a majority of tested CoNLL-X / CoNLL-XI datasets compared to the monotonic dynamic oracle and static oracle.",
+          "section_anchor": "Section 6, Table 3, Abstract",
+          "evidence": [
+            "Section 6: 'the novel non-monotonic oracle improves over the accuracy of the monotonic version on 14 out of 19 languages (0.32 in UAS on average) with the best loss calculation |U|+nc(A∪I).'",
+            "Table 3: per-language UAS/LAS comparisons showing improvements; 6 improvements statistically significant at .05 for best variant.",
+            "Abstract: 'non-monotonic dynamic oracle outperforms the monotonic version in the majority of languages.'"
+          ],
+          "uncertainty_flags": [
+            "Statistical significance is reported only for some language-level comparisons; no global statistical test across languages is provided.",
+            "Results are from perceptron-based models with fixed features; generalization to other learners (e.g., neural networks) is not empirically established.",
+            "One dataset (Basque) shows a drop in accuracy for non-monotonic variants, suggesting language-specific fragility."
+          ]
+        },
+        {
+          "claim_id": "C5",
+          "claim_label": "lower bound fastest; specific upper best accuracy",
+          "claim_text": "The lower-bound loss variant provides faster oracle computation (fastest training), while an upper-bound variant using |U(c,tG)| + nc(A ∪ I(c,tG)) gives the best average parsing accuracy despite not being the tightest bound.",
+          "section_anchor": "Section 4 and Section 6",
+          "evidence": [
+            "Section 4: 'a non-monotonic algorithm that uses the lower bound as loss expression is the fastest option (even faster than the monotonic approach) as the oracle does not need to compute cycles at all.'",
+            "Section 6 / Conclusion: 'one of the loss expressions ... proved very promising by providing the best average accuracy, in spite of being the farthest approximation from the actual loss.'",
+            "Table 3: |U|+nc variant has highest average UAS/LAS among non-monotonic variants."
+          ],
+          "uncertainty_flags": [
+            "No detailed wall-clock timing or complexity breakdown across full training runs is provided; 'fastest' and practical speedups are asserted qualitatively but not quantified in training-time tables.",
+            "Trade-offs may shift for different learners or feature extraction regimes (neural models, batched training)."
+          ]
+        },
+        {
+          "claim_id": "C6",
+          "claim_label": "first implementation claim",
+          "claim_text": "This is the first reported implementation of full non-monotonicity for a non-projective parsing algorithm and the first approximate dynamic oracle using close, efficiently-computable loss approximations.",
+          "section_anchor": "Introduction and Conclusion",
+          "evidence": [
+            "Introduction: 'To our knowledge, the presented system is the first nonmonotonic parser that can produce non-projective dependency analyses.'",
+            "Conclusion: 'To our knowledge, this is the first implementation of non-monotonicity for a nonprojective parsing algorithm, and the first approximate dynamic oracle that uses close, efficiently-computable approximations of the loss.'"
+          ],
+          "uncertainty_flags": [
+            "Novelty claim is prefaced by 'to our knowledge' and depends on contemporaneous literature coverage; possibility of overlooked prior work exists.",
+            "Whether prior art offers partial or alternative approximations or different notions of non-monotonicity may affect the strength of 'first' claims."
+          ]
+        }
+      ],
+      "strengths": [
+        {
+          "title": "Clear operational definition of full non-monotonic transitions",
+          "description": "The paper gives a concrete, implementable transition definition (Figure 2) that deterministically handles single-head and cycles via deletions, enabling reproducibility.",
+          "evidence": [
+            "Figure 2: explicit transition rules including set operations on A",
+            "Section 3: step-by-step explanation of overwriting heads and cycle-breaking"
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Practical approximate-oracle framework with multiple bounds",
+          "description": "Authors derive both a cheap lower bound and two cycle-aware upper bounds, enabling trade-offs between computation and tightness and enabling an approximate dynamic oracle family.",
+          "evidence": [
+            "Section 4: definitions of |U|, npc(A∪I), and nc(A∪I) and inequalities |U| ≤ loss ≤ |U|+npc ≤ |U|+nc",
+            "Algorithm 2: shows how different COUNTRELEVANTCYCLES implementations yield oracles"
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Empirical validation across many languages",
+          "description": "Evaluation covers 19 CoNLL-X/XI datasets and uses exhaustive-loss checks on sampled transitions plus full parser training comparisons, supporting generalizability claims.",
+          "evidence": [
+            "Table 1: bound tightness per language (first 100k transitions)",
+            "Table 3: UAS/LAS results across 19 languages with multiple seeds"
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Insightful trade-off observation (simpler upper bound performs best)",
+          "description": "The empirical result that the cruder upper bound |U|+nc can yield better learned models is a non-obvious, useful insight for oracle design.",
+          "evidence": [
+            "Section 6: discussion about learning difficulty of problematic cycles and Table 3 showing |U|+nc best average accuracy"
+          ],
+          "confidence": "medium"
+        }
+      ],
+      "concerns": [
+        {
+          "issue_code": "M1",
+          "title": "Ambiguity and edge cases in cycle-breaking deletion rule",
+          "description": "The deterministic deletion 'remove arc z→x' when x→y creates a cycle relies on the existence and uniqueness of such z; interactions with overlapping cycles and indegree-2 situations may leave ambiguous or ill-specified updates affecting correctness.",
+          "severity": "major",
+          "evidence": [
+            "Shared analysis A1 and A7: note uniqueness due to single-head, but non-monotonicity creates indegree up to 2 in A∪I and overlapping cycles",
+            "Figure 2 and Section 3: describe deletion but do not exhaustively formalize selection under complex cycle topologies"
+          ],
+          "actionable_suggestion": "Add a formal lemma and proof (or enumerated invariant checks) that the deletion rule yields a deterministic, valid, acyclic single-head graph in all cases; include pseudocode handling overlapping cycles and explicit edge-case examples with small graphs.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M2",
+          "title": "Empirical tightness evaluation limited to early/sampled transitions",
+          "description": "Bound tightness is measured on only the first 100,000 transitions per dataset via exhaustive search; this sampling may miss rare but impactful later configurations or long-sentence behaviors that break the tightness claim.",
+          "severity": "major",
+          "evidence": [
+            "Section 5: 'we undertake the analysis of only the first 100,000 transitions on each dataset' and Table 1 summarizing averages",
+            "Shared analysis uncertainty flags: representativeness concern (A3)"
+          ],
+          "actionable_suggestion": "Extend the exhaustive comparison to multiple random samples across training (including later iterations and longer sentences), report distributional statistics (percentiles, max errors), and show how tails affect oracle decisions during training.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M3",
+          "title": "Lack of quantified runtime/complexity comparisons for full training",
+          "description": "Paper asserts the lower-bound oracle is fastest and that cycle enumeration is more expensive but provides no wall-clock training-time breakdown or scaling study across sentence lengths, corpora, or number of cycles.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 4 claims 'fastest option (even faster than the monotonic approach)' but no timing tables are provided; Table 3 reports only accuracy.",
+            "Shared analysis recommends measuring wall-clock training time as evaluation target."
+          ],
+          "actionable_suggestion": "Include measured wall-clock times (oracle time per transition, total training time) for each oracle variant across datasets and report complexity scaling with sentence length and cycle counts.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M4",
+          "title": "Generality beyond perceptron/feature setup untested",
+          "description": "All experiments use averaged perceptron with fixed templates; improvements might interact with model class (e.g., neural models) and feature design, leaving generalization to modern parsers unproven.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 6: explicit use of averaged perceptron, 15 iterations, Table 2 features; Section 7 mentions neural models as future work.",
+            "Shared analysis A5 flags sensitivity to learner and features."
+          ],
+          "actionable_suggestion": "Provide at least a small-scale experiment or ablation using a neural greedy learner (or simulated scoring variability) to test whether non-monotonic oracles yield comparable relative gains, or clarify constraints for generalization.",
+          "novelty_risk": true,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M5",
+          "title": "Novelty claim relies on literature coverage without exhaustive proof",
+          "description": "The 'first implementation' novelty statement is phrased as 'to our knowledge' and could be weakened by overlooked prior work; novelty should be qualified and contextualized more precisely.",
+          "severity": "minor",
+          "evidence": [
+            "Introduction and Conclusion: 'To our knowledge, the presented system is the first...' wording.",
+            "Shared analysis uncertainty_flags: dependence on contemporaneous literature."
+          ],
+          "actionable_suggestion": "Soften absolute novelty statements or add a short focused related-work paragraph enumerating prior non-monotonic and approximate-oracle attempts and explicitly contrasting them (e.g., projective-only non-monotonic parsers, partial non-monotonicity, or other approximation strategies).",
+          "novelty_risk": true,
+          "methodological_flaw": false,
+          "confidence": "high"
+        }
+      ],
+      "comparable_works": [
+        {
+          "citation_label": "Honnibal et al. 2013",
+          "relevance": "Prior work on limited non-monotonicity in arc-eager projective parsing; motivates need for fuller non-monotonicity.",
+          "similarity_or_difference": "Similar in that non-monotonic actions are used to repair past mistakes, but Honnibal et al. restrict non-monotonicity and to projective parsing; current paper extends non-monotonicity to both arc directions and to non-projective Covington.",
+          "source_trace": "Introduction (mentions Honnibal et al. 2013) and related discussion"
+        },
+        {
+          "citation_label": "Honnibal & Johnson 2015",
+          "relevance": "Follow-up on non-monotonic arc-eager parser with Unshift; further context on partial non-monotonicity limits.",
+          "similarity_or_difference": "Provides limited non-monotonic repairs and remains projective; contrasts with present work's full non-monotonic non-projective approach.",
+          "source_trace": "Introduction (mentions Honnibal and Johnson 2015)"
+        },
+        {
+          "citation_label": "Gómez-Rodríguez & Fernández-González 2015",
+          "relevance": "Previous monotonic dynamic oracle for non-projective Covington; directly compared in experiments.",
+          "similarity_or_difference": "Provides monotonic dynamic oracle and exact loss computation (with cycle correction) for Covington; current paper builds on and extends this to non-monotonic transitions and approximate oracles.",
+          "source_trace": "Introduction and Section 2.2 (cited as baseline monotonic oracle)"
+        },
+        {
+          "citation_label": "Goldberg & Nivre 2013",
+          "relevance": "Foundational formulation of dynamic oracles and arc-decomposability concept used as a baseline for loss reasoning.",
+          "similarity_or_difference": "Provides theoretical framing for dynamic oracles; this paper adapts that framing to a non-monotonic, non-arc-decomposable setting using bounds.",
+          "source_trace": "Section 2.2 (dynamic oracle definition) and background"
+        },
+        {
+          "citation_label": "Covington 2001 / Nivre 2008",
+          "relevance": "Original non-projective parser design forming algorithmic substrate.",
+          "similarity_or_difference": "Paper modifies Covington transitions to be non-monotonic; preserves left-to-right traversal constraints inherent to the original algorithm.",
+          "source_trace": "Section 2.1 (describes Covington system)"
+        },
+        {
+          "citation_label": "Johnson 1975",
+          "relevance": "Cycle enumeration algorithm used to compute nc(A∪I) and npc(A∪I) bounds.",
+          "similarity_or_difference": "Provides algorithmic tool (Johnson's elementary cycle enumeration); cost dependence on number of cycles is relevant to scalability trade-offs in this paper.",
+          "source_trace": "Section 4 and references"
+        }
+      ],
+      "uncertainty_flags": [
+        "No formal proof of intractability for exact loss; claim is heuristic/empirical.",
+        "Bounds tightness measured only on first 100k transitions; representativeness of this sample is uncertain.",
+        "Cycle enumeration cost (Johnson) depends on number of cycles c; scalability for corpora with many cycles not fully characterized.",
+        "Per-language variability (Basque outlier) suggests incomplete understanding of robustness.",
+        "Novelty 'first' claim depends on literature coverage up to submission time ('to our knowledge')."
+      ],
+      "alternative_interpretations": [
+        "Accuracy gains may stem partly from increased exposure to erroneous states (more exploration) due to always-allowed arc creation rather than from non-monotonicity per se; the wider action set increases training diversity and may regularize the model.",
+        "The superior performance of the cruder |U|+nc upper bound could be due to easier-to-learn, more conservative supervision rather than that it better approximates true loss—i.e., a simpler penalty for cycles may produce more stable gradients/updates for a local classifier.",
+        "Basque accuracy drop could be caused by dataset annotation idiosyncrasies (heavy non-projectivity, label distributions, or sentence lengths) interacting with feature templates rather than a fundamental failure of non-monotonicity."
+      ],
+      "transparency_notes": [
+        "Authors correctly caveat novelty claims with 'to our knowledge' but should explicitly enumerate prior partial non-monotonic approaches and contrast them.",
+        "Intractability is presented as empirical/heuristic ('we do not know of an efficient way') rather than as a formal computational hardness result; this is transparent but should be distinguished from proof.",
+        "Sampling strategy for exhaustive loss comparisons is described (first 100k transitions) but lacking distributional tail statistics; authors should make sampled transitions/distributions available for reproducibility.",
+        "Experimental pipeline (random seeds, number of runs, averaged reporting) is described; more runtime and per-configuration error details would improve reproducibility."
+      ],
+      "creativity_safeguard": {
+        "lacks_close_analogs": true,
+        "treat_as_innovation_signal": true,
+        "novelty_not_validity_note": "Novelty (a full non-monotonic non-projective dynamic oracle using efficiently-computable loss bounds) is plausible and notable given cited prior work that only offered limited/projective non-monotonicity or monotonic non-projective oracles; however, novelty does not automatically validate the theoretical correctness or empirical robustness—methodological issues (edge-case semantics, sampling limits) remain independent concerns.",
+        "counterfactual_conditions_for_success": [
+          "If formal invariants guarantee deterministic, acyclic, single-head outcomes after each transition (resolving A1/A7), the approach is sound and implementable at scale.",
+          "If exhaustive-bound tightness extends beyond initial 100k transitions (tails small), approximate oracles will reliably guide training.",
+          "If cycle counts remain modest in typical corpora (keeping Johnson's enumeration practical), the upper-bound oracles remain computationally feasible.",
+          "If relative gains persist under stronger learners (neural architectures) and different feature regimes, the method generalizes and is impactful."
+        ]
+      },
+      "novelty_lenses": [
+        {
+          "lens": "incremental algorithmic extension",
+          "verdict": "meaningful incremental contribution",
+          "rationale": "Transforms an existing non-projective transition system (Covington) by relaxing preconditions and introducing deterministic repair semantics; combines known algorithmic primitives (overwriting heads, cycle-breaking) into a cohesive non-monotonic design and couples it with an approximate dynamic oracle.",
+          "evidence": [
+            "Section 3: concrete transition definitions",
+            "Section 4: bound derivations and inequality chain"
+          ],
+          "uncertainty_flags": [
+            "Dependence on correctness/invariants of deletion semantics (A1/A7) and limited sampling for bound tightness (A3)."
+          ]
+        },
+        {
+          "lens": "training-oracle methodology",
+          "verdict": "incremental but practically useful innovation",
+          "rationale": "Introducing efficiently-computable lower/upper loss bounds for a parser where exact loss is elusive allows a practical dynamic oracle family with observable empirical benefits; the idea is not a radical theoretical breakthrough but represents a useful engineering/algorithmic refinement.",
+          "evidence": [
+            "Algorithm 2: shows switchable bound usage",
+            "Table 1 and Table 3: empirical tightness and accuracy benefits"
+          ],
+          "uncertainty_flags": [
+            "Generalization to other learners and full training-time runtimes remain to be demonstrated."
+          ]
+        }
+      ],
+      "confidence_interval": {
+        "lower": 0.4,
+        "upper": 0.8,
+        "rationale": "Assessment confidence is medium-high: the manuscript provides clear algorithmic definitions, derivations, and multi-language empirical results (supporting claims). Uncertainties remain about edge-case semantics, representativeness of bound-tightness sampling, and runtime/generalization to other learners, which prevent maximal confidence."
+      }
+    },
+    {
+      "reviewer_id": "reviewer_4",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "reviewer_label": "GPT",
+      "cognitive_role": "novelty_assessor_disruptive",
+      "epistemic_variant": "disruptive-thinking lens",
+      "paper_type_assumed": "methodological",
+      "prior_stage_inputs": [
+        "SHARED_ANALYSIS: extracted_claims, identified_assumptions, argument_focus, evaluation_targets, uncertainty_flags, chaining_notes",
+        "MANUSCRIPT_CONTEXT: full text and tables (Sections 1-7, Figures 1-2, Tables 1-3, references)"
+      ],
+      "analytical_summary": "The paper defines a fully non-monotonic variant of the non-projective Covington transition parser by (1) allowing Left-Arc and Right-Arc to always create arcs, overwriting previous heads to preserve single-head, and (2) breaking cycles immediately by deleting a specific existing arc (z→x) when a new arc x→y would create a cycle. Exact loss for dynamic-oracle training in this non-monotonic, non-projective setting is not known to be efficiently computable; the authors therefore derive a lower bound |U(c,tG)| (positional-based unreachable arcs) and two upper bounds that add cycle counts: |U| + npc(A∪I) (problematic cycles) and |U| + nc(A∪I) (all cycles). They use Johnson's algorithm to enumerate cycles when needed. Exhaustive-search experiments (pruned with bounds) on the first 100k transitions per CoNLL dataset show the bounds are very tight on average (relative error < 0.8%). Training with an approximate non-monotonic dynamic oracle (three variants) using averaged perceptron features for 15 iterations yields higher average UAS/LAS than the monotonic dynamic oracle on most languages; the |U| + nc(A∪I) variant gives the best average accuracy despite being a coarser bound, while the lower bound offers fastest oracle computation (claimed). The paper claims novelty as the first full non-monotonic non-projective parser and first approximate dynamic oracle using close efficiently-computable loss approximations. The core chain of reasoning: (i) full non-monotonic transitions increase reachable arcs I(c,tG), (ii) exact loss infeasible, (iii) tight bounds suffice for an approximate dynamic oracle, (iv) approximate oracle with exploration yields improved learned parsers.",
+      "logical_argument_graph": [
+        "Node1: Problem — greedy transition parsers suffer error propagation; monotonic oracles cannot repair past errors (Intro).",
+        "Node2: Prior partial non-monotonic solutions (Honnibal et al.) are limited and projective, so full non-monotonicity for non-projective parsing is unexplored (Intro).",
+        "Node3: Define full non-monotonic Covington by allowing arcs always and resolving single-head by overwriting previous heads (Sec 3).",
+        "Node4: Handle acyclicity by immediate deletion of a specific existing head (z→x) when new arc creates cycle; this preserves simple arc reachability test (Sec 3).",
+        "Node5: Exact loss unknown/unfeasible in this non-monotonic setting; therefore derive lower bound |U| and two upper bounds adding cycle counts (Sec 4).",
+        "Node6: Provide reasoning for bounds and computational method (Johnson's algorithm) (Sec 4).",
+        "Node7: Empirically evaluate bounds via exhaustive pruned search on first 100k transitions: bounds are tight (<0.8% relative error) (Sec 5, Table 1).",
+        "Node8: Implement approximate dynamic oracles using these bounds, train perceptron parser, compare static, monotonic dynamic, and three non-monotonic variants across CoNLL datasets (Sec 6, Table 3).",
+        "Node9: Observe non-monotonic variants improve average UAS/LAS across languages; |U|+nc best avg accuracy; lower bound fastest oracle (Sec 6, Conclusion).",
+        "Node10: Conclude novelty claim: first full non-monotonic non-projective parser and first close-loss approximate dynamic oracle (Intro, Conclusion)."
+      ],
+      "identified_claims": [
+        {
+          "claim_id": "C1",
+          "claim_label": "full non-monotonic Covington defined",
+          "claim_text": "A fully non-monotonic variant of the non-projective Covington transition system is defined by allowing Left-Arc and Right-Arc transitions to always create arcs, overwriting previous heads to enforce single-head, and deleting a specific existing arc when a created arc would form a cycle to enforce acyclicity.",
+          "section_anchor": "Section 3 (Non-Monotonic Transition System for the Covington Non-Projective Parser), Figure 2",
+          "evidence": [
+            "Section 3: \"we allow the Right-Arc and Left-Arc transitions to create arcs between any pair of nodes without restriction. If the node attached as dependent already had a previous head, the existing attachment is discarded...\"",
+            "Section 3: \"if the creation of a new arc x→ y generates a cycle in A, we immediately remove the arc of the form z → x from A...\"",
+            "Figure 2: transitions include arc additions and deletions for Left-Arc and Right-Arc."
+          ],
+          "uncertainty_flags": [
+            "Precise tie-breaking / selection rule for z→x deletion is described but could have edge cases; formal invariants (uniqueness, determinism) require careful check.",
+            "Left-to-right parsing order still forbids certain repairs (footnote) which tempers 'full' in a practical sense."
+          ]
+        },
+        {
+          "claim_id": "C2",
+          "claim_label": "exact loss intractable; bounds tractable",
+          "claim_text": "Exact computation of configuration loss for the fully non-monotonic non-projective Covington parser is not efficiently computable in practice (no known efficient method), but tight lower and upper bounds on configuration loss can be computed and used to build an approximate dynamic oracle.",
+          "section_anchor": "Section 4 (Non-Monotonic Approximate Dynamic Oracle) and Section 5 (Evaluation of the loss bounds)",
+          "evidence": [
+            "Section 4: \"we do not know of an efficient way of obtaining an exact calculation of the loss... Instead, we use upper or lower bounds on the loss...\"",
+            "Formal bounds: |U(c,tG)| (lower), |U| + npc(A∪I) and |U| + nc(A∪I) (upper) defined in Section 4.",
+            "Section 5: exhaustive-search experiments used to estimate exact loss for sampled configurations; bounds used to prune search."
+          ],
+          "uncertainty_flags": [
+            "Claim of intractability is empirical/negative-knowledge ('we do not know') rather than a formal complexity/hardness proof.",
+            "Practical complexity of computing nc(A∪I) depends on c (elementary cycles); scalability for large c is not fully quantified."
+          ]
+        },
+        {
+          "claim_id": "C3",
+          "claim_label": "bounds are tight in practice",
+          "claim_text": "The proposed lower and upper bounds are empirically very tight approximations to the true loss (relative errors below 0.8% across tested datasets), making them suitable for an approximate dynamic oracle.",
+          "section_anchor": "Section 5 (Evaluation of the loss bounds), Table 1",
+          "evidence": [
+            "Section 5: \"the lower and the closer upper bounds are a tight approximation of the loss, with both bounds incurring relative errors below 0.8% in all datasets.\"",
+            "Table 1: per-language averages and relative differences to exact loss over first 100,000 transitions show small relative errors."
+          ],
+          "uncertainty_flags": [
+            "Evaluation restricted to first 100k transitions; may not capture rare or later-stage configurations or worst-case tails.",
+            "Reported metrics are averages; per-configuration maxima and distribution tails (e.g., percentiles) are not provided."
+          ]
+        },
+        {
+          "claim_id": "C4",
+          "claim_label": "oracle variants improve accuracy",
+          "claim_text": "The non-monotonic approximate dynamic oracle (with the proposed loss-bound variants) yields higher parsing accuracy (UAS/LAS averages) on a majority of tested CoNLL-X / CoNLL-XI datasets compared to the monotonic dynamic oracle and static oracle.",
+          "section_anchor": "Section 6 (Experiments), Table 3, Abstract, Introduction",
+          "evidence": [
+            "Section 6: \"the novel non-monotonic oracle improves over the accuracy of the monotonic version on 14 out of 19 languages (0.32 in UAS on average) with the best loss calculation |U|+nc(A∪I)\"",
+            "Table 3: per-language UAS/LAS comparisons show majority improvements; several statistically significant gains reported."
+          ],
+          "uncertainty_flags": [
+            "Statistical significance reported per-language with Yeh (2000) test for some improvements (6 significant for best variant) but not globally across languages.",
+            "Training setup (averaged perceptron, features, 15 iterations) could influence results; generalization to other learners (e.g., neural networks) untested."
+          ]
+        },
+        {
+          "claim_id": "C5",
+          "claim_label": "lower bound fastest; specific upper best accuracy",
+          "claim_text": "The lower-bound loss variant offers faster oracle computation (fastest training), while an upper-bound variant using |U(c,tG)| + nc(A ∪ I(c,tG)) gives the best average parsing accuracy despite not being the tightest bound.",
+          "section_anchor": "Section 4 (oracle complexity), Section 6 (Experiments), Conclusion",
+          "evidence": [
+            "Section 4: lower-bound oracle does not need cycle computations and so is described as the fastest option.",
+            "Section 6 and Conclusion: |U|+nc(A∪I) variant achieves highest average UAS/LAS among variants (Table 3)."
+          ],
+          "uncertainty_flags": [
+            "No quantitative wall-clock timings or full-training complexity tables comparing variants are presented (statements are qualitative).",
+            "Trade-offs may shift with different learners or feature extraction costs; claims may not generalize."
+          ]
+        },
+        {
+          "claim_id": "C6",
+          "claim_label": "first implementation claim",
+          "claim_text": "This is the first reported implementation of full non-monotonicity for a non-projective parsing algorithm and the first approximate dynamic oracle using close, efficiently-computable loss approximations.",
+          "section_anchor": "Introduction and Conclusion",
+          "evidence": [
+            "Introduction: \"To our knowledge, the presented system is the first nonmonotonic parser that can produce non-projective dependency analyses.\"",
+            "Conclusion: similar 'to our knowledge' novelty claim."
+          ],
+          "uncertainty_flags": [
+            "Novelty depends on contemporaneous literature coverage; 'to our knowledge' leaves open the possibility of overlooked prior work.",
+            "Whether prior approximate oracles used different approximations may challenge the 'first approximate dynamic oracle' claim depending on fine-grained definitions."
+          ]
+        }
+      ],
+      "strengths": [
+        {
+          "title": "Clear operationalization of full non-monotonic transitions",
+          "description": "The paper gives a concrete, implementable definition of non-monotonic Left-Arc and Right-Arc transitions including precise deletion rules for single-head and cycles.",
+          "evidence": [
+            "Section 3: description of always-allowed arc transitions, overwriting previous heads, and deletion of z→x when cycles form; Figure 2 shows transition schemata."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "principled derivation of lower and upper loss bounds",
+          "description": "Authors derive bounds with explicit reasoning about which arcs remain unreachable and how cycles can cause lost gold arcs.",
+          "evidence": [
+            "Section 4: formal definition of |U(c,tG)| and derivation of |U|+npc and |U|+nc upper bounds with justification about problematic cycles and counting removed gold arcs."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Empirical evaluation showing tightness of bounds",
+          "description": "Exhaustive pruned search on sampled configurations demonstrates small average relative errors (<0.8%), supporting feasibility of approximate oracle.",
+          "evidence": [
+            "Section 5 and Table 1: detailed per-language average bound vs exact loss comparisons over first 100,000 transitions."
+          ],
+          "confidence": "medium"
+        },
+        {
+          "title": "Demonstrated accuracy improvements across many languages",
+          "description": "Non-monotonic oracles outperform monotonic dynamic and static oracles in the majority of CoNLL datasets, showing practical learning benefit.",
+          "evidence": [
+            "Section 6 and Table 3: 14/19 languages improved with non-monotonic variant, average UAS/LAS numbers, and several significant gains reported."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Explicit discussion of computational trade-offs",
+          "description": "Paper acknowledges and contrasts runtime complexity of lower bound (cheap) vs cycle-counting upper bounds (Johnson's algorithm), enabling informed choices.",
+          "evidence": [
+            "Section 4: discussion of Johnson's O((n+e)(c+1)) complexity and the statement that lower-bound oracle is fastest."
+          ],
+          "confidence": "medium"
+        }
+      ],
+      "concerns": [
+        {
+          "issue_code": "M1",
+          "title": "Potential ambiguity or edge cases in cycle-breaking deletion rule",
+          "description": "The rule 'remove arc z→x when adding x→y closes a cycle' needs rigorous formalization and invariants: uniqueness, determinism, and interaction with overlapping cycles are critical and may produce unintended parser states if unspecified.",
+          "severity": "major",
+          "evidence": [
+            "Section 3 describes deletion as removing 'the arc of the form z → x ... unique due to the singlehead constraint', but interactions with overlapping cycles and indegree-2 in A∪I are later noted (Section 4).",
+            "Shared analysis flagged A1/A7 about deletion rule correctness and risks."
+          ],
+          "actionable_suggestion": "Add a formal lemma/argument proving the deletion rule preserves single-head and acyclicity deterministically (e.g., prove uniqueness of z, show no other arcs must be removed), and include tests or corner-case examples where overlapping cycles occur.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M2",
+          "title": "Intractability claim lacks formal complexity proof",
+          "description": "The statement that exact loss computation is infeasible is based on 'no known efficient method' rather than a formal hardness result; this conflates unknown with intractable and weakens theoretical claim.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 4: 'we do not know of an efficient way of obtaining an exact calculation of the loss...' (negative knowledge rather than formal proof).",
+            "Shared analysis uncertainty_flags note absence of a formal intractability proof."
+          ],
+          "actionable_suggestion": "Either provide a formal complexity/hardness argument for exact loss computation in the non-monotonic setting, or explicitly frame the statement as 'no efficient algorithm is known' and discuss implications rather than stating practical intractability as a fact.",
+          "novelty_risk": true,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M3",
+          "title": "Bound evaluation limited to first 100k transitions and averages",
+          "description": "Tightness claims are supported by averaged results on early transitions; distributional tails, worst-case configurations, and later training-stage behavior are not characterized and may hide important failures.",
+          "severity": "major",
+          "evidence": [
+            "Section 5: exhaustive search and bound comparison performed only on first 100,000 transitions per dataset; Table 1 reports averages only.",
+            "Shared analysis flagged representativeness risk (A3)."
+          ],
+          "actionable_suggestion": "Provide additional analyses: (a) distributional summaries (e.g., percentiles, max relative error), (b) repeated sampling including later training iterations and long sentences, and (c) targeted stress tests designed to provoke overlapping-cycle configurations.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M4",
+          "title": "Cycle enumeration cost and scalability not fully quantified",
+          "description": "Upper bounds rely on enumerating elementary cycles via Johnson's algorithm; the practical incidence of large c (number of cycles) and associated wall-clock cost during full training is not measured.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 4 describes Johnson's O((n+e)(c+1)) complexity but no empirical runtime breakdown is provided; Section 6 claims lower-bound variant is fastest qualitatively.",
+            "Shared analysis recommended measuring wall-clock times (evaluation_targets)."
+          ],
+          "actionable_suggestion": "Report wall-clock oracle computation time per transition and total training time across variants (lower vs both upper bounds), ideally stratified by sentence length and dataset to show scalability.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M5",
+          "title": "Generality of empirical gains beyond perceptron/features is untested",
+          "description": "Experiments use averaged perceptron with fixed feature templates. It is unclear whether non-monotonic oracle gains generalize to modern neural greedy parsers or different hyperparameter regimes.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 6: experiments use averaged perceptron, 15 iterations, Table 2 feature templates; Section 7 suggests possible neural usage but no empirical evidence.",
+            "Shared analysis assumption A5 highlights this risk."
+          ],
+          "actionable_suggestion": "Either add experiments (or at least a controlled ablation) with a neural scorer or different hyperparameters, or explicitly discuss how training dynamics might differ and what re-evaluation steps are needed for neural models.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M6",
+          "title": "Statistical testing and reporting could be more comprehensive",
+          "description": "Per-language significance markers are provided for some comparisons, but the global significance across languages and effect-size variability (confidence intervals) are not reported, limiting strength of empirical claims.",
+          "severity": "minor",
+          "evidence": [
+            "Section 6 notes per-language significance using Yeh (2000) with some marked languages; no global tests or effect-size confidence intervals reported.",
+            "Shared analysis includes statistical-significance uncertainty flag."
+          ],
+          "actionable_suggestion": "Report confidence intervals or bootstrapped significance for average UAS/LAS differences across languages and include per-language effect sizes and variability measures.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "medium"
+        }
+      ],
+      "comparable_works": [
+        {
+          "citation_label": "Honnibal et al., 2013; Honnibal & Johnson, 2015",
+          "relevance": "Prior art on introducing limited non-monotonic actions for arc-eager (projective) parsers; motivates need for fuller non-monotonicity.",
+          "similarity_or_difference": "Similar objective (allow repairs) but differs in scope: prior work offers restricted non-monotonicity and focuses on projective arc-eager systems; current paper targets full non-monotonicity in a non-projective Covington system.",
+          "source_trace": "Introduction and related mentions (MANUSCRIPT_CONTEXT references)"
+        },
+        {
+          "citation_label": "Gómez-Rodríguez & Fernández-González, 2015",
+          "relevance": "Monotonic dynamic oracle for non-projective Covington; baseline for monotonic dynamic oracle comparisons and starting point for adapting the oracle.",
+          "similarity_or_difference": "Provides monotonic dynamic oracle with exact loss formula using |U| + nc(A∪I) for the monotonic algorithm; current work adapts/extends oracle ideas under non-monotonic transitions and approximate bounds.",
+          "source_trace": "Section 2.2 (Monotonic Dynamic Oracle) and references"
+        },
+        {
+          "citation_label": "Covington, 2001; Nivre, 2008",
+          "relevance": "Original non-projective Covington algorithm and its framing as a transition system; foundational algorithmic substrate used for non-monotonic extension.",
+          "similarity_or_difference": "Paper extends Covington by changing applicability conditions and adding deletion rules to make it non-monotonic; builds upon core focus-word traversal logic.",
+          "source_trace": "Section 2.1 and references"
+        },
+        {
+          "citation_label": "Goldberg & Nivre, 2012; Goldberg & Nivre, 2013",
+          "relevance": "Foundational dynamic-oracle framework and arc-decomposability concepts used to define and reason about reachable arcs and loss.",
+          "similarity_or_difference": "Prior dynamic oracle theory underlies the loss-based oracle approach; current paper departs by requiring approximations because non-monotonicity breaks easy exact computation.",
+          "source_trace": "Section 2.2 and references"
+        }
+      ],
+      "uncertainty_flags": [
+        "No formal complexity/hardness proof for exact loss computation; claim is empirical/negative rather than proven.",
+        "Bounds tightness evaluation limited to first 100,000 transitions per dataset; tail behavior and worst-case discrepancies unreported.",
+        "Cycle enumeration cost depends on number of elementary cycles c; practical incidence of large c not measured.",
+        "Language-specific failure (Basque) indicates possible dataset- or structure-specific fragility not analyzed in depth.",
+        "'To our knowledge' novelty claims leave open possibility of overlooked prior work."
+      ],
+      "alternative_interpretations": [
+        "Observed accuracy gains could partly arise from interactions between the perceptron feature set and the new transition dynamics rather than solely from non-monotonicity per se; different learners might reduce or amplify these gains.",
+        "The superior performance of the coarser upper bound (|U|+nc) may be due to an easier-to-learn conservative training signal (avoid cycles broadly) rather than because it better approximates the true loss.",
+        "Tight average bound errors may hide rare but impactful configurations where bounds are loose and training behavior diverges; the average improvement may therefore be fragile in production or on other corpora."
+      ],
+      "transparency_notes": [
+        "Novelty claims are written as 'to our knowledge'; authors should explicitly list related attempts or negative-results search strategy to strengthen the claim.",
+        "The paper does not report wall-clock oracle/training times for each bound variant; qualitative speed claims should be quantified.",
+        "Exhaustive loss computation methodology (pruning heuristics, limits) should be described in more detail to enable reproduction of Table 1 results."
+      ],
+      "creativity_safeguard": {
+        "lacks_close_analogs": true,
+        "treat_as_innovation_signal": true,
+        "novelty_not_validity_note": "Sparse precedent (few or no close prior systems that implement full non-monotonic non-projective parsing) should be treated as a potential innovation signal, but does not imply correctness—empirical and formal checks of invariants, worst-case behaviors, and scalability are still required.",
+        "counterfactual_conditions_for_success": [
+          "If the cycle-breaking deletion rule is formally proven to be deterministic and preserves parser invariants even under overlapping cycles, then the transition system is operationally correct.",
+          "If bound tightness (both average and tail bounds) generalizes beyond early transitions and across sentence lengths/corpora, then approximate oracle guidance will remain reliable during full training.",
+          "If the cycle-count-based upper bounds can be computed with low enough wall-clock overhead (or lowered via heuristics) during full training, then the accuracy gains justify the computational cost.",
+          "If gains persist when using neural scorers or different learning regimes, the method will generalize to modern architectures and see broader impact."
+        ]
+      },
+      "novelty_lenses": [
+        {
+          "lens": "disruptive-thinking",
+          "verdict": "The manuscript introduces a coherent new conceptual frame—full non-monotonicity for non-projective parsing—supported by practical operational decisions and bounded-loss training; novelty signal is strong.",
+          "rationale": "There are few close predecessors for full non-monotonic non-projective parsing; the authors present an explicit transition design, loss-approximation scheme, and empirical validation across languages, satisfying criteria for a novel methodological contribution.",
+          "evidence": [
+            "Section 3: detailed non-monotonic transitions; Section 4: derived bounds and oracle design; Section 6: cross-language empirical improvements."
+          ],
+          "uncertainty_flags": [
+            "Novelty claim is 'to our knowledge' and depends on literature coverage; absence of formal proofs and limited evaluation breadth temper the disruptive verdict."
+          ]
+        },
+        {
+          "lens": "incremental-comparison",
+          "verdict": "The work can also be read as an incremental but useful extension of existing dynamic-oracle and Covington-based parsing literature rather than a wholesale paradigm shift.",
+          "rationale": "The contribution builds on established components (Covington parser, dynamic-oracle ideas, cycle-counting) and adapts them to a new setting; improvements are empirical and measured in the usual CoNLL framework.",
+          "evidence": [
+            "Sections 2 and 4 explicitly adapt earlier loss-decomposition and cycle-count ideas (Gómez-Rodríguez & Fernández-González 2015) to non-monotonicity rather than inventing a wholly new theory."
+          ],
+          "uncertainty_flags": [
+            "This lens downplays the novelty of implementing full non-monotonicity; controlled disagreement preserved (both lenses presented)."
+          ]
+        }
+      ],
+      "confidence_interval": {
+        "lower": 0.6,
+        "upper": 0.9,
+        "rationale": "I am moderately to highly confident in the assessment of novelty and methodological strengths based on the presented arguments, tight empirical bounds, and cross-language experiments. Confidence is reduced by lack of formal hardness proofs, limited exhaustive sampling (first 100k transitions), and missing wall-clock/scale analyses; these maintain non-negligible uncertainty about generalization and scalability."
+      }
+    },
+    {
+      "reviewer_id": "reviewer_5",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "reviewer_label": "GPT",
+      "cognitive_role": "claim_verifier",
+      "epistemic_variant": "evidence-and-uncertainty-first",
+      "paper_type_assumed": "methodological",
+      "prior_stage_inputs": [
+        "SHARED_ANALYSIS",
+        "PRIOR_STAGE_DIGEST"
+      ],
+      "analytical_summary": "The paper defines a fully non-monotonic variant of the non-projective Covington transition system by allowing Left-Arc and Right-Arc to always create arcs, resolving single-head by overwriting previous heads and enforcing acyclicity by deterministically deleting a specific incoming arc when a new arc would create a cycle. Exact configuration loss under this flexible parser is not computed; instead the authors derive a lower bound |U(c,tG)| (positional unreachable arcs) and two upper bounds that add cycle-related terms: |U| + npc(A∪I) (problematic cycles) and |U| + nc(A∪I) (all cycles). These bounds are used to build an approximate dynamic oracle. Empirical diagnostics using exhaustive search with pruning on the first 100k transitions per language show the bounds are very tight on average (relative error < 0.8%). Perceptron-trained parsers (15 iterations, fixed feature templates) using the non-monotonic approximate dynamic oracle outperform the monotonic dynamic oracle and static oracle on the majority of CoNLL-X/XI languages (best average with |U|+nc), though one language (Basque) is a clear negative outlier. Main strengths: clear operationalization of non-monotonic transitions, pragmatic bound derivations, and broad multilingual experiments. Main evidential gaps / uncertainties: (i) no formal hardness proof for exact loss (claim is empirical/negative), (ii) correctness and edge-case behavior of the cycle-breaking deletion rule (which underlies the whole system) could be ambiguous in some configurations, (iii) bound tightness evaluation is limited to the first 100k transitions and averaged statistics (worst-case/tail behavior and full-training representativeness unclear), (iv) oracle runtime trade-offs are stated qualitatively (no detailed wall-clock or complexity vs accuracy plots for full training), and (v) novelty 'first' claims rest on literature coverage ('to our knowledge'). I separate claims that are well-supported by manuscript evidence from those that are partly supported or overstated and enumerate concrete tests and revisions to strengthen the inferential chain.",
+      "logical_argument_graph": [
+        "C1 defines non-monotonic transitions by allowing arc creation always, overwriting prior heads, and deleting z→x if x→y would create a cycle — (Section 3, Figure 2).",
+        "Given C1, exact loss becomes hard to compute because arcs can be created and later removed, changing reachability semantics — (Section 4).",
+        "Define positional unreachable arcs U(c,tG) as a lower bound; add cycle-based corrections (npc and nc) to form two upper bounds — (Section 4).",
+        "Empirically compute exact loss via exhaustive search with pruning on sampled transitions and compare bounds; find bounds are tight on average (<0.8% relative error) — (Section 5, Table 1).",
+        "Use bounds to implement approximate dynamic oracles (lower, pc upper, upper) and train perceptron parsers across CoNLL-X/XI datasets — (Section 6).",
+        "Observe average accuracy improvements of non-monotonic oracles (best with |U|+nc), and speed claim for the lower-bound oracle (no cycle enumeration) — (Section 6, Conclusion, Table 3).",
+        "Conclude novel contributions: first full non-monotonic non-projective parser and first approximate dynamic oracle using close, efficiently-computable loss approximations — (Introduction, Conclusion)."
+      ],
+      "identified_claims": [
+        {
+          "claim_id": "C1",
+          "claim_label": "full non-monotonic Covington defined",
+          "claim_text": "A fully non-monotonic variant of the non-projective Covington transition system can be defined by allowing arc-creating transitions to overwrite previous heads and enforce single-head and acyclicity by deleting offending arcs.",
+          "section_anchor": "Section 3 (Non-Monotonic Transition System for the Covington Non-Projective Parser)",
+          "evidence": [
+            "Section 3: text describing allowing Right-Arc and Left-Arc to create arcs and discarding previous attachment if dependent already had a head.",
+            "Section 3: describes deleting the arc z → x when x → y would create a cycle.",
+            "Figure 2: transitions showing additions and deletions in A for Left-Arc and Right-Arc."
+          ],
+          "uncertainty_flags": [
+            "Ambiguity about edge cases: selection of 'z → x' relies on single-head uniqueness, but interactions when multiple overlapping cycles exist or when deletion choice may be ambiguous are not fully formalized.",
+            "Left-to-right parsing limitation remains (cannot repair leftward arc with rightward), noted in footnote; so 'full' non-monotonicity is qualified."
+          ]
+        },
+        {
+          "claim_id": "C2",
+          "claim_label": "exact loss intractable; bounds tractable",
+          "claim_text": "Exact loss computation for a non-monotonic non-projective parser is intractable in practice, but tight lower and upper bounds on configuration loss can be computed efficiently (or reasonably efficiently) and used to build an approximate dynamic oracle.",
+          "section_anchor": "Section 4 and Section 5",
+          "evidence": [
+            "Section 4: explicit statement 'we do not know of an efficient way of obtaining an exact calculation of the loss... Instead, we use upper or lower bounds on the loss...'.",
+            "Definition of |U(c,tG)| as lower bound and two upper bounds using npc/nc(A∪I).",
+            "Section 5: empirical evaluation and exhaustive search with pruning used to compute exact loss for sampled configurations."
+          ],
+          "uncertainty_flags": [
+            "No formal complexity/hardness proof is provided; intractability claim is heuristic/empirical (authors admit 'we do not know of an efficient way').",
+            "Efficiency of computing nc/npc depends on number of cycles c; Johnson's algorithm complexity O((n+e)(c+1)) may be acceptable in practice but not quantified across full datasets or worst cases."
+          ]
+        },
+        {
+          "claim_id": "C3",
+          "claim_label": "bounds are tight in practice",
+          "claim_text": "The proposed lower and upper bounds are empirically very tight approximations to the true loss (relative errors below 0.8% across tested datasets), making them suitable for an approximate dynamic oracle.",
+          "section_anchor": "Section 5 (Evaluation of the loss bounds), Table 1",
+          "evidence": [
+            "Table 1: average values and relative differences showing small relative error between bounds and exhaustive loss over first 100,000 transitions per dataset.",
+            "Section 5: statement that both bounds incur relative errors below 0.8% in all datasets."
+          ],
+          "uncertainty_flags": [
+            "Evaluation limited to first 100,000 transitions per language; later-stage configurations, long sentences, or rare structures might produce larger discrepancies.",
+            "Reported statistics are averages; distributional tails and maximum per-configuration relative errors are not reported.",
+            "Japanese shows exact equality for the sampled set; other languages may hide occasional larger errors."
+          ]
+        },
+        {
+          "claim_id": "C4",
+          "claim_label": "oracle variants improve accuracy",
+          "claim_text": "The proposed non-monotonic approximate dynamic oracle (with several loss-bound variants) yields higher parsing accuracy on a majority of tested CoNLL-X / CoNLL-XI datasets compared to the monotonic dynamic oracle and static oracle.",
+          "section_anchor": "Section 6 (Experiments), Table 3, Abstract",
+          "evidence": [
+            "Section 6: 'the novel non-monotonic oracle improves over the accuracy of the monotonic version on 14 out of 19 languages (0.32 in UAS on average) with the best loss calculation |U|+nc(A∪I)'.",
+            "Table 3: per-language UAS/LAS for static, monotonic dynamic, and three non-monotonic variants; averages showing improvements.",
+            "Reported number of statistically significant improvements (6 of 14 improvements significant at .05 for best variant)."
+          ],
+          "uncertainty_flags": [
+            "Statistical testing is partial: significance reported per language for some comparisons, but no global across-language hypothesis test is given and not all language-level differences are significant.",
+            "Experimental setup uses averaged perceptron with fixed features; relative oracle benefits may differ with other learners (e.g., neural networks) or hyperparameters.",
+            "Basque shows a notable decrease with non-monotonic oracles — robustness across linguistic typologies not fully analyzed."
+          ]
+        },
+        {
+          "claim_id": "C5",
+          "claim_label": "lower bound fastest; specific upper best accuracy",
+          "claim_text": "The lower-bound loss variant offers a fast oracle (faster training), while a particular upper-bound variant (|U| + nc(A ∪ I)) gives the best average accuracy despite not being the tightest bound.",
+          "section_anchor": "Section 4 (oracle complexity), Section 6 (Experiments), Conclusion",
+          "evidence": [
+            "Section 4: notes that using the lower bound requires no cycle computation and so is fastest (even faster than monotonic approach).",
+            "Section 6 and Conclusion: state that |U|+nc(A∪I) yields best average accuracy, despite being a coarser approximation.",
+            "Table 3: shows |U|+nc has highest average UAS/LAS among non-monotonic variants."
+          ],
+          "uncertainty_flags": [
+            "No precise wall-clock or throughput measurements are provided comparing full training times across oracle variants; 'fastest' is asserted qualitatively rather than quantified.",
+            "Trade-offs observed on perceptron with fixed features; may change under different learners or when cycle counts get large."
+          ]
+        },
+        {
+          "claim_id": "C6",
+          "claim_label": "first implementation claim",
+          "claim_text": "This is the first reported implementation of full non-monotonicity for a non-projective parsing algorithm and the first approximate dynamic oracle using close, efficiently-computable loss approximations.",
+          "section_anchor": "Introduction and Conclusion",
+          "evidence": [
+            "Introduction: 'To our knowledge, the presented system is the first nonmonotonic parser that can produce non-projective dependency analyses.'",
+            "Conclusion: reiterates 'To our knowledge, this is the first implementation...'."
+          ],
+          "uncertainty_flags": [
+            "Novelty claim is framed 'to our knowledge' and depends on coverage of contemporaneous literature; reviewers cannot fully verify absence of prior work from manuscript alone.",
+            "Some prior works used limited non-monotonicity or approximate oracles; 'first' requires careful definition and literature confirmation."
+          ]
+        }
+      ],
+      "strengths": [
+        {
+          "title": "Clear operationalization of non-monotonic transitions",
+          "description": "The paper gives a concrete, implementable specification (Figure 2 and Section 3) of how to allow non-monotonic Left-Arc and Right-Arc transitions while maintaining invariants via deterministic deletions.",
+          "evidence": [
+            "Section 3 description and Figure 2 showing transition updates including removal of prior heads and cycle-breaking deletions."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Practical derivation of loss bounds",
+          "description": "Authors derive a principled lower bound and two progressively looser upper bounds that admit efficient computation or controlled enumeration (using Johnson's algorithm), enabling an approximate dynamic oracle.",
+          "evidence": [
+            "Section 4: definitions of |U(c,tG)|, |U|+npc(A∪I), and |U|+nc(A∪I); discussion of Johnson's algorithm complexity."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Broad multilingual empirical evaluation",
+          "description": "The paper evaluates oracles across 19 CoNLL-X/XI datasets, reporting per-language UAS/LAS and statistical significance on many comparisons, which supports cross-linguistic claims.",
+          "evidence": [
+            "Section 6 and Table 3: results across CoNLL-X and CoNLL-XI languages, five runs per language, averaged accuracies."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Empirical bound validation via exhaustive search",
+          "description": "The authors implement exhaustive search with pruning to obtain exact loss on sampled configurations and compare bounds quantitatively (Table 1), rather than only arguing theoretically.",
+          "evidence": [
+            "Section 5 explains exhaustive search with pruning and Table 1 shows relative differences between bounds and exact loss for first 100k transitions."
+          ],
+          "confidence": "medium"
+        }
+      ],
+      "concerns": [
+        {
+          "issue_code": "M1",
+          "title": "Ambiguity and edge-case risk in cycle-breaking deletion rule",
+          "description": "The cycle-breaking rule (delete arc z→x when x→y would create a cycle) is central. The paper describes it informally and relies on single-head uniqueness, but it lacks a fully formal proof that the rule always yields a deterministic, valid acyclic single-head graph across all possible configurations and overlapping-cycle cases.",
+          "severity": "major",
+          "evidence": [
+            "Section 3 describes deletion of 'the arc of the form z→x' but does not formalize selection in complex overlapping-cycle scenarios.",
+            "Shared analysis and prior reviewers flagged potential edge cases and the need to validate operational invariants (A1, A7)."
+          ],
+          "actionable_suggestion": "Provide a formal invariant proof or exhaustive state-machine argument showing that after any Left-Arc/Right-Arc transition and the proposed deletion rule, A remains a valid single-head acyclic graph; include treatment of overlapping cycles and explicit pseudocode clarifying selection of z.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M2",
+          "title": "Lack of formal hardness argument for exact loss computation",
+          "description": "The paper claims exact loss is impractical/unknown to compute efficiently, but provides no formal complexity or hardness result; this weakens the justification for resorting to approximations.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 4 wording: 'we do not know of an efficient way' rather than giving a complexity lower bound or reduction.",
+            "Prior-stage digests note the intractability claim is empirical/heuristic."
+          ],
+          "actionable_suggestion": "Either (a) provide a formal complexity argument or reduction showing computing exact loss is NP-hard or otherwise intractable, or (b) more concretely characterize the empirical cost (e.g., growth of c and empirical cycle counts across full datasets) to justify approximation trade-offs.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M3",
+          "title": "Representativeness of bound tightness evaluation",
+          "description": "Bound tightness is evaluated only on the first 100,000 transitions per language, reported as averages. This sampling may not capture later-stage or rare configurations; worst-case per-configuration errors and distribution tails are not characterized.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 5 explicitly limits exhaustive search to first 100k transitions; Table 1 provides averages only.",
+            "Shared analysis lists A3 and related uncertainty flags about representativeness."
+          ],
+          "actionable_suggestion": "Extend exhaustive-bound-vs-exact comparisons to (a) multiple random samples across full training runs (including later iterations), (b) stratify by sentence length and by configurations that produce cycle-rich A∪I, and (c) report distributions (histogram, percentiles, max) of relative errors, not just means.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M4",
+          "title": "Incomplete quantification of oracle runtime and training overhead",
+          "description": "Claims that the lower-bound oracle is fastest and that upper bounds are more expensive (due to cycle enumeration) are qualitatively stated but lack measured wall-clock training times, per-iteration overhead, or scaling with sentence length / dataset size.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 4 references Johnson's algorithm complexity but offers no empirical timing; Section 6/Conclusion assert lower bound is fastest without numerical timings.",
+            "Shared analysis recommends wall-clock comparisons as pending evaluation steps."
+          ],
+          "actionable_suggestion": "Report measured wall-clock times or throughput (tokens/sec), memory usage, and oracle-call time distribution for each loss variant across representative datasets and sentence-length bins; include training-time vs accuracy trade-off plots.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M5",
+          "title": "Limited generality: only perceptron with fixed features tested",
+          "description": "All experiments use averaged perceptron with fixed feature templates and 15 iterations. It is unclear whether oracle advantages generalize to neural learners or other hyperparameter settings.",
+          "severity": "minor",
+          "evidence": [
+            "Section 6: describes perceptron setup and feature templates (Table 2); Conclusion suggests applicability to neural methods but no experiments provided.",
+            "Shared analysis lists A5/A6 as assumptions."
+          ],
+          "actionable_suggestion": "Either add experiments using a neural classifier (even a small-scale replication) or include a discussion bounding the claim (e.g., why perceptron is a suitable testbed; hypothesize how results might change with other learners).",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M6",
+          "title": "Unexplained language-specific failure (Basque)",
+          "description": "Non-monotonic variants show a notable drop in Basque, but the paper does not analyze why; such outliers may reveal structural limitations or interactions with data/features.",
+          "severity": "minor",
+          "evidence": [
+            "Table 3: Basque UAS/LAS lower for non-monotonic variants compared to monotonic and static oracles; Section 6 notes this as 'inexplicable'."
+          ],
+          "actionable_suggestion": "Provide error analysis for Basque: examine types of errors increased by non-monotonic training, sentence-length distribution, cycle incidence, and feature interactions; report whether similar patterns occur in other morphologically rich or free-word-order languages.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        }
+      ],
+      "comparable_works": [
+        {
+          "citation_label": "Honnibal et al. (2013); Honnibal & Johnson (2015)",
+          "relevance": "Prior work on non-monotonic transition systems (arc-eager family) with limited non-monotonic actions; provides contrast to 'full' non-monotonicity here.",
+          "similarity_or_difference": "Similar motivation (repair past mistakes) but restricted non-monotonicity and projective focus; this paper extends to full non-monotonicity and non-projective Covington system.",
+          "source_trace": "Manuscript references (Introduction) and prior-stage digests"
+        },
+        {
+          "citation_label": "Gómez-Rodríguez & Fernández-González (2015)",
+          "relevance": "Provides the monotonic dynamic oracle for non-projective Covington; used as baseline and conceptual starting point for loss decomposition/cycle correction.",
+          "similarity_or_difference": "Monotonic oracle uses |U| + nc(A ∪ I) to compute exact loss for monotonic Covington; current paper adapts and approximates analogous terms for non-monotonicity.",
+          "source_trace": "Manuscript references and Section 2.2 discussion"
+        },
+        {
+          "citation_label": "Goldberg & Nivre (2013)",
+          "relevance": "Framework of dynamic oracles and arc-decomposability that underpins loss reasoning; conceptually foundational.",
+          "similarity_or_difference": "Authors build on oracle theory but face new complexity due to non-monotonic transitions altering reachability semantics.",
+          "source_trace": "Manuscript references and Section 2.2"
+        }
+      ],
+      "uncertainty_flags": [
+        "No formal complexity/hardness proof for exact loss computation; intractability claim is empirical/heuristic.",
+        "Bound tightness and cycle-count costs are evaluated only on first 100k transitions and presented as averages; worst-case/tail behavior not characterized.",
+        "Cycle enumeration cost depends on number of elementary cycles c; incidence of large c in full corpora is not reported.",
+        "Operational correctness of deletion rule must be formally shown or exhaustively tested for edge cases (overlapping cycles, multiple candidate deletions).",
+        "Generalization from perceptron/feature setup to neural learners or other hyperparameters is untested.",
+        "Novelty claims ('first') rely on literature coverage and may need explicit delimitation."
+      ],
+      "alternative_interpretations": [
+        "The observed accuracy gains may partly arise from increased exploration induced by imperfect approximate oracles rather than strictly from non-monotonic repair capability; looser upper bound (|U|+nc) could act as a stronger regularizer/explorer that guides learning toward safer actions.",
+        "The best-performing coarse bound (|U|+nc) performing better than the tighter |U|+npc suggests that model capacity or feature set may be insufficient to exploit fine-grained distinctions—i.e., exact loss might not be learnable with the current learner, so coarser signals help generalization.",
+        "Basque degradation could indicate that non-monotonic actions overfit particular structures in training or that feature templates are mismatched for that language; not necessarily a failure of non-monotonicity per se."
+      ],
+      "transparency_notes": [
+        "Authors report five runs per language with different seeds and averaged accuracies; per-run variances or confidence intervals are not provided in tables.",
+        "No wall-clock training times or per-oracle-call time distributions are provided; statements about speed are qualitative.",
+        "Exhaustive loss computation was applied only to the first 100k transitions due to computational cost; this sampling choice should be clearly justified and its representativeness discussed.",
+        "Novelty claims are explicitly framed 'to our knowledge'; readers should verify contemporaneous literature for any missed prior art."
+      ],
+      "creativity_safeguard": {
+        "lacks_close_analogs": true,
+        "treat_as_innovation_signal": true,
+        "novelty_not_validity_note": "Sparse precedent for full non-monotonicity in non-projective parsing appears to be an innovation signal, but novelty alone does not guarantee correctness or practical superiority; missing formal guarantees and limited runtime quantification mean novelty risk must be separated from methodological weaknesses.",
+        "counterfactual_conditions_for_success": [
+          "If the cycle-breaking deletion rule is formally proven or empirically validated to maintain invariants and be deterministic in all relevant configurations, the approach becomes operationally sound.",
+          "If bound tightness generalizes to later training stages and across other learners (e.g., neural), the approximate dynamic oracle will be broadly useful.",
+          "If cycle enumeration cost proves manageable in real training workloads (c small on average), then the apparently better-accuracy but more expensive upper bound is practical."
+        ]
+      },
+      "novelty_lenses": [
+        {
+          "lens": "incremental_novelty",
+          "verdict": "plausible incremental advance",
+          "rationale": "Extends prior non-monotonic approaches (Honnibal et al.) into non-projective Covington parser and proposes pragmatic approximate oracles based on loss bounds; builds on and adapts existing dynamic-oracle theory rather than overturning it.",
+          "evidence": [
+            "Paper cites and contrasts with Honnibal et al. (2013) and Gómez-Rodríguez & Fernández-González (2015); Section 3/4 show how adaptations are made."
+          ],
+          "uncertainty_flags": [
+            "Relies on 'to our knowledge' novelty claim; completeness of literature survey unknown."
+          ]
+        },
+        {
+          "lens": "disruptive_novelty",
+          "verdict": "possible but unproven disruptive potential",
+          "rationale": "Full non-monotonic non-projective parsing with an approximate dynamic oracle is conceptually novel and, if robust and scalable, could change how greedy parsers are trained. However, missing formal guarantees (deletion correctness), limited runtime characterization, and only perceptron experiments make disruptive potential conditional on further validation.",
+          "evidence": [
+            "Empirical improvements across many languages suggest practical impact, but Basque failure and lack of neural experiments leave generality open."
+          ],
+          "uncertainty_flags": [
+            "Need further tests (edge cases, runtime, other learners) to confirm disruptive impact."
+          ]
+        }
+      ],
+      "confidence_interval": {
+        "lower": 0.15,
+        "upper": 0.85,
+        "rationale": "I am moderately confident in manuscript-supported empirical claims (bound tightness on sampled transitions, per-language perceptron gains) given presented data, but important methodological gaps (formal deletion correctness, representativeness of samples, runtime quantification, generalization to other learners) reduce overall certainty. The interval reflects substantial but not full confidence in the validity and generality of the claims."
+      }
+    }
+  ],
+  "meta_review": {
+    "consensus_findings": [
+      "The paper clearly defines an implementable non-monotonic variant of the Covington non-projective transition system (allowing Left-Arc and Right-Arc to always create arcs, overwriting heads and deleting a deterministically chosen incoming arc to break cycles).",
+      "Exact computation of configuration loss under the presented full non-monotonic semantics is not given a formal polynomial-time algorithm in the manuscript; the authors present a lower bound (|U(c,tG)|) and two upper bounds (|U|+npc and |U|+nc) that are logically motivated and integrated into an approximate dynamic-oracle framework.",
+      "Empirical experiments (perceptron with fixed feature templates, 5 seeds, 19 CoNLL-X/XI datasets) show that non-monotonic approximate oracles improve average parsing accuracy (UAS/LAS) on a majority of languages compared to monotonic dynamic and static oracles; the |U|+nc variant attains the best average accuracy while the |U| lower-bound oracle is claimed to be fastest in oracle computation.",
+      "The manuscript implements an exhaustive-search-with-pruning procedure on sampled transitions (first 100k transitions per dataset) and reports that the proposed bounds approximate exact loss tightly on average (reported relative errors < 0.8%).",
+      "The work is plausibly novel in operationalizing full non-monotonicity for a non-projective parser and in proposing practical, efficiently-computable loss bounds to build an approximate dynamic oracle; the novelty claim is made cautiously ('to our knowledge')."
+    ],
+    "disagreements": [
+      "Whether the deletion rule (delete arc z→x when adding x→y would create a cycle) is fully and unambiguously specified and invariant-preserving: several reviewers flagged possible edge cases related to overlapping cycles, indegree>1 situations in intermediate graphs, and left-to-right constraints. Some reviewers consider the provided operational description sufficient for reproduction; others request a formal lemma or exhaustive handling of corner cases.",
+      "The strength of the 'intractability' claim for exact loss computation: reviewers agree no efficient method is presented, but disagree on whether this should be framed as a formal hardness result (missing) or an empirically motivated engineering limitation (as currently stated).",
+      "Interpretation of why the coarser upper bound (|U|+nc) performs best: one view is that this is an unexpected empirical finding worth reporting; another interpretation is that the coarser bound may act as a regularizer or easier-to-learn training signal rather than being closer to true loss, and the manuscript does not fully disentangle these possibilities.",
+      "Sufficiency of the exhaustive-sampling regime (first 100k transitions) for establishing bound tightness: reviewers disagree on whether the sampled evidence is convincing for full-training behavior. Some treat the sampling as reasonable given computational constraints; others consider the sampling insufficient and request tail/worst-case analyses and later-stage samples."
+    ],
+    "uncertainty_hotspots": [
+      "Operational invariants of cycle-breaking deletions (determinism, uniqueness of deleted arc z→x, guarantee that A remains a valid acyclic single-head partial parse in all configurations).",
+      "Representativeness of the exhaustive-loss evaluation: lack of distributional statistics (percentiles, maxima) and restriction to the first 100k transitions may hide rare but impactful configurations encountered later or in longer sentences.",
+      "Runtime and scalability of upper-bound oracles: dependence on cycle counts c (Johnson's algorithm complexity) is discussed theoretically but not quantified empirically across full training runs, sentence lengths, or corpora.",
+      "Generality of empirical gains beyond the experimental setup: experiments are limited to averaged perceptron with fixed feature templates; it is uncertain whether improvements transfer to neural greedy learners or other learning regimes and hyperparameters.",
+      "Language-specific robustness: the Basque dataset shows a consistent drop for non-monotonic variants and is unexplained, raising uncertainty about behavior on particular language typologies or annotation conventions."
+    ],
+    "model_diversity_effects": [
+      "Role-specific evaluation (structure/logical reviewers vs reproducibility/methodology reviewers) highlights complementary concerns: structure-focused reviewers emphasize logical coherence and novelty (finding the design plausible and original), while methodology-focused reviewers emphasize reproducibility, runtime, and sampling sufficiency (requesting formal invariants, timing data, and broader sampling).",
+      "Different reviewers propose alternative interpretations of empirical outcomes: some attribute accuracy gains to effective non-monotonic repair capability; others propose that approximate oracles (especially coarser bounds) change the training signal in ways that act like a regularizer or that increase exploration—effects that may interact with the perceptron learner and fixed feature set.",
+      "Because all reviewers used evidence-focused analyses rather than identical priors, reviewer diversity surfaces precisely the gap between algorithmic definition + sampled correctness checks and the operational concerns (edge cases, tails, runtime) that determine practical adoption."
+    ],
+    "editor_guidance": "Keep the manuscript's central claims and engineering contributions as the focus for decision-making. Key issues for the authors to address before broader claims of practical utility are: (1) formalize and/or exhaustively validate the cycle-breaking deletion rule to show it preserves parser invariants (single-head, acyclicity, determinism) in all cases; (2) strengthen empirical evidence that loss bounds are representative beyond the initial 100k-transition sample by reporting distributional error statistics (percentiles, max), and by sampling later training iterations and long sentences; (3) quantify runtime overheads (wall-clock training time, average oracle-call time, and scaling with sentence length / cycle counts) for each oracle variant, so editors can weigh accuracy gains versus computational cost; (4) provide analysis of the Basque degradation (and other outliers) to clarify robustness limits; and (5) temper 'first' novelty claims or more explicitly delimit their scope in relation to prior limited non-monotonic / approximate-oracle work. These targeted revisions will clarify correctness, representativeness, scalability, and generality, enabling the editor to balance novelty and practical readiness. If authors provide these additions and they support the paper's existing empirical findings, the work will be well-positioned as a notable methodological contribution; if not, the editor should treat reported accuracy gains as conditional on the current experimental regime (perceptron + features).",
+    "author_guidance": "To address reviewers' concerns and strengthen the manuscript, please consider the following concrete revisions and experiments: 1) Formalize the deletion semantics: provide a short formal lemma (with proof sketch) or state-machine invariant showing that after any Left-Arc/Right-Arc transition plus the described deletion, the attachment set A is single-headed and acyclic and the deletion choice is unambiguous. Include pseudocode for the deletion selection and at least one nontrivial worked example with overlapping cycles. 2) Extend and characterize the exhaustive-loss evaluation: run additional exhaustive (or strongly pruned) comparisons on multiple random samples drawn from later training iterations and specifically include long sentences and cycle-rich configurations; report full distributions of relative errors (mean, median, 90th/95th percentiles, max) rather than only averages. 3) Add wall-clock and oracle-cost measurements: report per-epoch training time and per-oracle-call average/variance for each bound variant, stratified by sentence-length bins and by cycle-count regimes, and specify hardware used. 4) Diagnose Basque (and other outliers): present a targeted error analysis (examples, error types increased/decreased, sentence-length stratification, cycle incidence) to explain the drop and if needed discuss dataset-specific limitations. 5) Clarify the intractability claim: either provide a formal complexity argument or explicitly rephrase the statement as 'no known efficient exact algorithm; we treat exact loss as empirically impractical in our setting' and support it with empirical growth measurements (e.g., time to compute exact loss as function of sentence length or cycle counts). 6) Discuss generalization to other learners: either include a small-scale experiment using a neural scorer (or at least a simulated sensitivity analysis) or add a dedicated discussion of how oracle signals interact with neural training dynamics and what adjustments would be necessary. 7) Soften or delimit 'first' novelty claims: keep 'to our knowledge' but add a brief related-work paragraph explicitly contrasting prior limited/projective non-monotonic systems and prior approximate-oracle approaches, clarifying what aspect is novel (e.g., full non-monotonicity in a non-projective parser plus these particular efficiently-computable close bounds). Implementing these changes will materially reduce uncertainty hotspots and make the empirical and operational claims more reproducible and convincing.",
+    "transparency_report": [
+      "The manuscript provides explicit pseudocode for transitions (Figure 2) and oracle logic (Algorithm 2), and reports experiments across 19 CoNLL datasets with five seeds per configuration. Exhaustive-loss evaluation used pruning and was applied to the first 100,000 transitions per dataset; bounds versus exact-loss averages are reported in Table 1.",
+      "Runtime/resource reporting is limited: machine specs, wall-clock times, per-oracle-call timings, and memory usage are not provided. Statements about relative oracle speed are qualitative.",
+      "Bound evaluation details: the exhaustive search procedure and pruning heuristics are described but sampling strategy (why first 100k transitions, whether deterministic or seeded) and per-configuration error distributions are not released in the manuscript.",
+      "Statistical testing: per-language significance markers are reported (Yeh 2000 cited) but no global multi-language statistical test or per-language confidence intervals/variances are tabulated.",
+      "Novelty claims are explicitly hedged with 'to our knowledge' but the manuscript would benefit from a more explicit mapping of how prior work differs (projective vs non-projective; partial vs full non-monotonicity; exact vs approximate oracles)."
+    ],
+    "epistemic_limits": [
+      "The synthesis is constrained by the information provided in the manuscript and specialist reviews: no external code, logs, or raw experimental outputs were available for independent verification. Reviewers could not confirm invariants of the deletion rule beyond the authors' textual description and the provided pseudocode; formal proofs or exhaustive state-space tests are absent. The exhaustive-loss experiments are limited to early training transitions (first 100k), so conclusions about bound tightness during full training are extrapolations with acknowledged uncertainty. Runtime/scale claims are qualitative in the manuscript; without wall-clock measurements, practical deployment costs and trade-offs remain uncertain. Finally, the novelty 'first' claim depends on contemporaneous literature coverage at submission time; reviewers noted plausible novelty but could not categorically rule out overlooked related work. All of these epistemic limits are explicitly noted above and recommend targeted empirical/formal follow-ups to reduce uncertainty."
+    ]
+  },
+  "human_facing_meta_review": {
+    "is_meta_review": true,
+    "summary": "The manuscript presents a fully non-monotonic variant of the non-projective Covington transition parser and an approximate dynamic oracle built from an efficiently-computable lower bound (|U|) and two cycle-aware upper bounds (|U|+npc, |U|+nc). Exhaustive-search-with-pruning on sampled transitions (first 100k per dataset) shows the bounds are very tight on average (<0.8% relative error). Perceptron-trained parsers using the non-monotonic approximate oracles outperform monotonic dynamic and static oracles on a majority of tested CoNLL-X / CoNLL-XI languages; the coarser |U|+nc upper bound attains the best average accuracy while the |U| lower-bound oracle is the cheapest to compute. Reviewers converge on the value of the operational design and empirical results but identify gaps in formalization, sampling representativeness, runtime quantification, and assessment of generality.",
+    "strengths": [
+      "Concrete, implementable specification of non-monotonic Left-Arc/Right-Arc transitions for Covington (Figure 2) including deterministic deletion semantics to restore single-head and acyclicity.",
+      "Principled derivation of a lower bound and two progressively coarser upper bounds that are integrated into an approximate dynamic-oracle family.",
+      "Multilingual empirical evaluation across 19 CoNLL-X/XI datasets with multiple random-seed runs, showing consistent average parsing accuracy improvements for non-monotonic oracles.",
+      "Empirical validation of bound quality via exhaustive-search-with-pruning on a sizable sampled set (first 100k transitions per dataset), reporting very small average relative errors between bounds and exact loss."
+    ],
+    "limitations": [
+      "Ambiguity / missing formal invariants for the cycle-breaking deletion rule: the manuscript describes deleting 'the arc of the form z → x' when x → y would create a cycle, but does not provide a formal lemma/proof or exhaustive specification ensuring uniqueness, determinism, and preservation of the acyclic single-head invariant in all edge cases (e.g., overlapping cycles, indegree-up-to-2 in A∪I).",
+      "Representativeness of the exhaustive-loss evaluation is limited: exact-loss vs bound comparisons are restricted to the first 100,000 transitions per dataset and reported as averages; distributional tails, worst-case per-configuration errors, and later-stage training configurations (including long sentences and cycle-rich states) are not characterized.",
+      "Runtime and scalability claims are qualitative: while the lower-bound oracle is claimed fastest (no cycle enumeration) and upper bounds require cycle enumeration (Johnson 1975), the manuscript lacks wall-clock training times, per-oracle-call timings, and scaling analysis by sentence length or cycle count c.",
+      "Generality beyond the experimental setup is untested: experiments use averaged perceptron with fixed feature templates (15 iterations); no experiments with neural greedy parsers or other learners are provided to demonstrate transferability of oracle benefits.",
+      "Language-specific robustness is under-analyzed: Basque shows a consistent accuracy drop with non-monotonic variants but no diagnostic analysis is provided to explain this outlier."
+    ],
+    "open_questions": [
+      "Please provide a formal statement (lemma) and proof sketch or exhaustive pseudocode showing that the deletion rule (removing z → x when adding x → y creates a cycle) always yields a uniquely determined, acyclic, single-head attachment set A. If there are corner cases, enumerate and show how they are handled.",
+      "Can the authors extend the exhaustive-loss evaluation beyond the first 100k transitions? Specifically: (a) report per-configuration error distributions (median, 90th/95th percentiles, maximum) for bound vs exact loss; (b) include samples from later training iterations and long sentences or cycle-rich configurations to demonstrate representative tightness across training.",
+      "Please provide empirical wall-clock measurements: per-oracle-call average and variance, total training time per oracle variant, and scaling behavior stratified by sentence length and observed cycle counts (c). Also state hardware used and implementation details for cycle enumeration.",
+      "Could the authors analyze the Basque drop: show cycle incidence, sentence-length stratified scores, illustrative parse examples where non-monotonic training harms performance, and whether feature/template changes mitigate the drop?",
+      "How do the authors position the intractability claim for exact loss? If no formal hardness proof is available, can they either (a) phrase the claim explicitly as 'no efficient algorithm known in practice' and provide empirical growth curves for exact-loss computation time, or (b) provide a complexity-type argument/reduction if available?",
+      "Do the observed oracle benefits transfer to other learners? Please add at least a small-scale experiment or reasoned analysis for a neural greedy scorer (or explain why perceptron results should generalize)."
+    ],
+    "consensus_snapshot": [
+      "All reviewers accept that the paper clearly operationalizes full non-monotonicity for Covington and integrates practical loss bounds into an approximate dynamic oracle.",
+      "All reviewers concur that sampled empirical evidence shows bounds are tight on average and that non-monotonic oracles yield average parsing improvements under the reported perceptron setup.",
+      "There is agreement that formalization of deletion semantics, expanded bound representativeness testing, and quantitative runtime reporting are the principal gaps to address for broader practical claims."
+    ],
+    "disagreement_snapshot": [
+      "Some reviewers view the provided deletion description and transition formalism as sufficiently concrete for reproducibility; others consider the deletion rule underspecified and demand formal invariants or exhaustive corner-case handling.",
+      "Reviewers disagree on whether the coarse upper bound |U|+nc performing best is evidence of a desirable oracle approximation or instead an artifact of training dynamics (regularization/learnability) under the perceptron feature set; the paper does not fully disentangle these interpretations.",
+      "There is no consensus on the sufficiency of the 100k-transition sampling: some reviewers accept it as pragmatic; others find it insufficient and request broader/worse-case sampling."
+    ],
+    "uncertainty_snapshot": [
+      "Operational correctness: whether cycle-breaking deletions can produce ambiguous or unintended parser states in rare configurations remains unresolved and materially affects correctness of oracle loss calculations.",
+      "Bound generality: whether <0.8% average relative error on early transitions implies safe oracle behavior during full training (including tails) is uncertain.",
+      "Practicality: without wall-clock profiling, it is unclear whether the more accurate upper-bound oracles are computationally feasible at scale or whether the lower-bound oracle's speed advantage outweighs accuracy differences in realistic scenarios.",
+      "External validity: unknown whether gains generalize to modern neural parsers and different feature/regime settings."
+    ],
+    "source_trace": [
+      "Covington, M. A. (2001). 'A fundamental algorithm for dependency parsing' — origin of the Covington non-projective parser (algorithmic substrate described in Section 2.1 of manuscript).",
+      "Gómez-Rodríguez, C. & Fernández-González, D. (2015). Monotonic dynamic oracle for non-projective Covington — used as baseline and conceptual foundation (cited in manuscript Section 2.2).",
+      "Goldberg, Y. & Nivre, J. (2012/2013). Dynamic oracles and arc-decomposability — foundational framework adapted in the manuscript (background cited Section 2.2).",
+      "Johnson, D. B. (1975). 'Finding all the elementary circuits of a directed graph' — Johnson's algorithm used for cycle enumeration in upper-bound computations (discussed in Section 4).",
+      "Honnibal, M., Johnson, M., et al. (2013) and Honnibal & Johnson (2015). Prior non-monotonic arc-eager work (projective and partial non-monotonicity) contrasted in the manuscript (Introduction/related work)."
+    ],
+    "transparency_notes": [
+      "The manuscript provides pseudocode for transitions (Figure 2) and oracle logic (Algorithm 2), plus experimental tables (Tables 1-3) and a description of exhaustive-search-with-pruning limited to the first 100,000 transitions per dataset. However, wall-clock timings, machine specs, per-run variances, per-configuration error distributions, implementation details for cycle enumeration optimizations, and code/data release pointers are not provided. Novelty statements are hedged ('to our knowledge') but a more explicit related-work contrast would improve clarity."
+    ],
+    "editor_guidance": "Prioritize revisions that reduce the three main epistemic uncertainties: (1) require the authors to formalize the deletion semantics (uniqueness/determinism and invariant preservation) or provide exhaustive empirical validation of corner cases; (2) ask for expanded bound-evaluation reporting (distributional statistics, later-stage samples, long-sentence/cycle-rich subsets) and per-oracle wall-clock timings across representative datasets; (3) request a diagnostic analysis of Basque and any other outliers. Also ask authors to soften or delimit 'first' novelty statements if they cannot absolutely exclude prior closely related work. If these targeted clarifications and experiments are provided and support the paper's core empirical claims, the manuscript's contribution will be clearer and its practical implications easier to assess.",
+    "author_guidance": "To strengthen the manuscript and reduce reviewer uncertainty, please: (1) Add a formal lemma or detailed pseudocode proving/arguing that the cycle-breaking deletion rule yields a uniquely determined, acyclic, single-head A in all cases; include at least one nontrivial worked example with overlapping cycles. (2) Extend exhaustive-loss comparisons: sample additional transitions from later training iterations and long sentences; report full error distributions (median, 90th/95th percentiles, max) rather than only means. (3) Provide wall-clock timing: per-oracle-call time, total training time per oracle variant, and scaling with sentence length/cycle counts; include hardware and implementation details. (4) Diagnose Basque: show cycle distributions, sentence-length stratified performance, and example parse errors to explain the negative result. (5) Clarify the intractability claim: either provide a formal complexity argument or rephrase as 'no efficient exact method is known in practice' and support with empirical exact-loss runtime growth. (6) Address generality: either add a small neural-scorer experiment or discuss in detail why perceptron results should or should not generalize to other learners. (7) Tighten related-work discussion and qualify novelty claims precisely. These steps will materially increase reproducibility and strengthen the paper's claims.",
+    "comments": "Summary:\nThe paper operationalizes full non-monotonicity for the non-projective Covington parser and designs an approximate dynamic oracle family using a cheap lower bound and two cycle-aware upper bounds. Exhaustive-search validation on early training transitions shows tight average bound error; perceptron experiments across 19 languages show non-monotonic oracles improve average UAS/LAS, with a simple upper bound yielding the best average accuracy and the lower bound offering fastest oracle computation.\n\nStrengths:\n- Explicit, reproducible transition definitions enabling implementation (Figure 2).\n- Principled derivation of loss bounds and integration into an approximate dynamic oracle family.\n- Broad multilingual empirical evaluation demonstrating average gains.\n- Empirical bound validation via exhaustive search (with pruning) on a substantial early-sample.\n\nLimitations:\n- Deletion-rule formalization: the critical cycle-breaking deletion (remove z → x) lacks a formal invariant or exhaustive handling of corner cases (overlapping cycles, potential ambiguity) and thus threatens correctness guarantees.\n- Sampling representativeness: exact-loss vs bound comparisons are limited to the first 100k transitions per dataset and reported as averages—tails, worst-case per-configuration errors, and later-stage/larger-sentence behavior are unreported and could materially affect oracle reliability.\n- Runtime quantification: claims about oracle speed (lower bound fastest) and cost of cycle enumeration are qualitative; no wall-clock training times or per-oracle-call timings are supplied to assess practicality at scale.\n- Generality: experiments are limited to averaged perceptron with hand-crafted features; no evidence is provided that gains will transfer to neural greedy parsers or other learners.\n- Robustness: Basque shows a performance drop under non-monotonic oracles without diagnostic analysis.\n\nOpen Questions:\n1) Please provide a formal lemma/proof or exhaustive pseudocode showing deletion-rule determinism and invariant preservation (single-head, acyclicity) for all configurations, with worked examples for overlapping cycles.\n2) Can the bound-tightness evaluation be extended to later training iterations and long sentences; can per-configuration error distributions (median, 90/95th percentiles, max) be reported in addition to means?\n3) Please supply measured wall-clock timings (per-oracle-call and total training) for each oracle variant, stratified by sentence length and cycle-count regimes; include hardware details.\n4) Provide an analysis diagnosing Basque: what error types increase, are cycles or sentence-lengths implicated, and do feature changes mitigate the drop?\n5) Clarify the intractability statement for exact loss: is there a hardness proof, or can empirical runtime growth for exact-loss computation be shown to justify approximations?\n6) Do the oracle benefits carry to neural learners? If experiments are not feasible, offer a reasoned account of how oracle signals would interact with gradient-based training.\n\nTransparency:\nManuscript includes algorithmic pseudocode (Figure 2, Algorithm 2), exhaustive-search description, and multi-language experiments with five-seed averages. Missing elements: wall-clock timings, hardware specs, per-run variances/confidence intervals, per-configuration error distributions, exact sampling protocol for exhaustive search, and code availability pointers. Novelty claims are hedged ('to our knowledge') but would benefit from a concise explicit contrast to prior limited non-monotonic or approximate-oracle work.",
+    "confidence_interval": {
+      "lower": 0.35,
+      "upper": 0.85,
+      "rationale": "Confidence reflects high trust in the manuscript's presented empirical tables (bound averages, per-language UAS/LAS) and in the clarity of the operational design, but moderate-to-high uncertainty remains about deletion-rule invariants, representativeness of bound sampling, runtime overheads, and generality to other learners. These unresolved points materially affect practical validity and generalization, widening the plausible confidence interval."
+    }
+  },
+  "audit": {
+    "corpus_contexts": {},
+    "prompt_execution_trace": [
+      {
+        "stage": "meta_classification",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.1,
+        "role": "paper_classifier",
+        "input_stages": [
+          "manuscript"
+        ],
+        "notes": [
+          "Infers paper type, epistemic stance, and contribution style before downstream prompting."
+        ]
+      },
+      {
+        "stage": "shared_analysis",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.1,
+        "role": "shared_claims_and_assumptions_extractor",
+        "input_stages": [
+          "meta_classification",
+          "manuscript"
+        ],
+        "notes": [
+          "Extracts shared claims and assumptions for downstream prompt chaining."
+        ]
+      },
+      {
+        "stage": "specialist_review",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.15,
+        "role": "structure_analyst",
+        "input_stages": [
+          "meta_classification",
+          "shared_analysis",
+          "external_q1q2_retrieval_context",
+          "review_guidelines_retrieval_context"
+        ],
+        "notes": [
+          "Variant: logical-coherence-first",
+          "Reviewer label: GPT",
+          "Shared extraction stage is injected to preserve cross-review coherence.",
+          "Literature query: Can a fully non-monotonic transition system based on the non-projective Covington parser, trained with an approximate dynamic oracle using efficiently-computable loss bounds, improve parsing accuracy (and be practical to train) compared to monotonic and static oracles? paper structure logical flow section consistency argument continuity",
+          "Guideline query: structure_analyst logical-coherence-first paper structure logical flow section consistency argument continuity",
+          "Retrieved evidence comes from a dual runtime path: curated Q1/Q2 literature plus reviewer-guideline corpora in Qdrant."
+        ]
+      },
+      {
+        "stage": "specialist_review",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.2,
+        "role": "methodology_auditor",
+        "input_stages": [
+          "meta_classification",
+          "shared_analysis",
+          "external_q1q2_retrieval_context",
+          "review_guidelines_retrieval_context"
+        ],
+        "notes": [
+          "Variant: reproducibility-and-validity-first",
+          "Reviewer label: GPT",
+          "Shared extraction stage is injected to preserve cross-review coherence.",
+          "Literature query: Can a fully non-monotonic transition system based on the non-projective Covington parser, trained with an approximate dynamic oracle using efficiently-computable loss bounds, improve parsing accuracy (and be practical to train) compared to monotonic and static oracles? assumptions model choices statistical validity reproducibility robustness evaluation",
+          "Guideline query: methodology_auditor reproducibility-and-validity-first assumptions model choices statistical validity reproducibility robustness evaluation",
+          "Retrieved evidence comes from a dual runtime path: curated Q1/Q2 literature plus reviewer-guideline corpora in Qdrant."
+        ]
+      },
+      {
+        "stage": "specialist_review",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.35,
+        "role": "novelty_assessor_incremental",
+        "input_stages": [
+          "meta_classification",
+          "shared_analysis",
+          "external_q1q2_retrieval_context",
+          "review_guidelines_retrieval_context"
+        ],
+        "notes": [
+          "Variant: incremental-contribution lens",
+          "Reviewer label: GPT",
+          "Shared extraction stage is injected to preserve cross-review coherence.",
+          "Literature query: Can a fully non-monotonic transition system based on the non-projective Covington parser, trained with an approximate dynamic oracle using efficiently-computable loss bounds, improve parsing accuracy (and be practical to train) compared to monotonic and static oracles? extends existing paradigms semantic overlap comparable works incremental contribution",
+          "Guideline query: novelty_assessor_incremental incremental-contribution lens extends existing paradigms semantic overlap comparable works incremental contribution",
+          "Retrieved evidence comes from a dual runtime path: curated Q1/Q2 literature plus reviewer-guideline corpora in Qdrant."
+        ]
+      },
+      {
+        "stage": "specialist_review",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.45,
+        "role": "novelty_assessor_disruptive",
+        "input_stages": [
+          "meta_classification",
+          "shared_analysis",
+          "external_q1q2_retrieval_context",
+          "review_guidelines_retrieval_context"
+        ],
+        "notes": [
+          "Variant: disruptive-thinking lens",
+          "Reviewer label: GPT",
+          "Shared extraction stage is injected to preserve cross-review coherence.",
+          "Literature query: Can a fully non-monotonic transition system based on the non-projective Covington parser, trained with an approximate dynamic oracle using efficiently-computable loss bounds, improve parsing accuracy (and be practical to train) compared to monotonic and static oracles? new conceptual frame divergent ideas sparse precedent creative contribution",
+          "Guideline query: novelty_assessor_disruptive disruptive-thinking lens new conceptual frame divergent ideas sparse precedent creative contribution",
+          "Retrieved evidence comes from a dual runtime path: curated Q1/Q2 literature plus reviewer-guideline corpora in Qdrant."
+        ]
+      },
+      {
+        "stage": "specialist_review",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.1,
+        "role": "claim_verifier",
+        "input_stages": [
+          "meta_classification",
+          "shared_analysis",
+          "external_q1q2_retrieval_context",
+          "review_guidelines_retrieval_context",
+          "specialist_review_digests"
+        ],
+        "notes": [
+          "Variant: evidence-and-uncertainty-first",
+          "Reviewer label: GPT",
+          "Shared extraction stage is injected to preserve cross-review coherence.",
+          "Literature query: Can a fully non-monotonic transition system based on the non-projective Covington parser, trained with an approximate dynamic oracle using efficiently-computable loss bounds, improve parsing accuracy (and be practical to train) compared to monotonic and static oracles? claim verification evidence support overstatement literature cross-check",
+          "Guideline query: claim_verifier evidence-and-uncertainty-first claim verification evidence support overstatement literature cross-check",
+          "Retrieved evidence comes from a dual runtime path: curated Q1/Q2 literature plus reviewer-guideline corpora in Qdrant."
+        ]
+      },
+      {
+        "stage": "meta_review",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.2,
+        "role": "pluralistic_meta_reviewer",
+        "input_stages": [
+          "meta_classification",
+          "shared_analysis",
+          "specialist_reviews"
+        ],
+        "notes": [
+          "Synthesizes agreement, contradiction, and uncertainty rather than collapsing to a single verdict."
+        ]
+      },
+      {
+        "stage": "human_facing_meta_review",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.15,
+        "role": "human_style_meta_reviewer",
+        "input_stages": [
+          "meta_classification",
+          "shared_analysis",
+          "specialist_reviews",
+          "meta_review"
+        ],
+        "notes": [
+          "Exports a final expert-facing analytical synthesis with no scores and explicit transparency notes."
+        ]
+      }
+    ]
+  }
+}

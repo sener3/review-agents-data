@@ -1,0 +1,2178 @@
+{
+  "paper_context": {
+    "paper_type": "methodological",
+    "epistemic_stance": "empirical",
+    "research_question": "Can multi-view sense clustering of paraphrases (including a substitutability view) produce high-coverage, substitutable sense inventories from PPDB, and can such inventories be used as filters to improve lexical substitution rankings from vector/embedding-based models?",
+    "contribution_type": [
+      "algorithm",
+      "resource",
+      "evaluation"
+    ],
+    "contribution_style": [
+      "empirical demonstration",
+      "engineering/system-building",
+      "analysis of metrics"
+    ],
+    "main_claims": [
+      "A multi-view clustering method that incorporates a Context Substitutability view (computed with AddCos), Paraphrase Similarity (PPDB2.0 score), Shared Translations, and WordNet synset similarity produces paraphrase sense clusters that are more substitutable (per B-Cubed F-score) and have wider coverage than prior automatically-derived inventories (e.g., PPDBClus) and comparable/better substitutability than WordNet/TWSI when averaged across parts of speech.",
+      "The generated SubstClus inventories can be used to filter outputs of existing lexical substitution ranking models (Syn.VSM, AddCos) to substantially improve oracle and practical (best-fit with a simple WSD heuristic) GAP scores, demonstrating their practical utility for lexical substitution.",
+      "The proposed B-Cubed F-score based substitutability metric is predictive of a sense inventory's potential to improve lexical substitution (Oracle GAP correlates with substitutability), though WSD quality limits realized gains (Best-Fit GAP < Oracle GAP).",
+      "Different combinations of views yield complementary benefits; multi-view solutions outperform single-view baselines, and the method generalizes across parts of speech though noun performance may require specialized treatment (TWSI remains strong on nouns)."
+    ],
+    "expected_evaluation_dimensions": [
+      "Substitutability of generated sense clusters measured by extended B-Cubed F-score against CoInCo human lexsub annotations",
+      "Coverage (number of targets / average synonyms per target) of the generated sense inventory relative to baselines (WordNet+, PPDBClus, TWSI)",
+      "Intrinsic clustering quality (e.g., Silhouette Coefficient used for choosing k)",
+      "Extrinsic impact on lexical substitution rankings: unfiltered vs. oracle sense-filtered vs. best-fit sense-filtered GAP on held-out CoInCo test set for multiple ranking models (Syn.VSM, AddCos)",
+      "Ablation across views (C, P, W, T and combinations) to show contribution of each view",
+      "Robustness across parts of speech (all-words vs. nouns-only analyses)",
+      "Practicality/scalability considerations: dependence on PPDB/paraphrase candidate sizes, thresholds (PPDB score cutoff), and reliance on pretrained embeddings (AddCos)"
+    ],
+    "confidence": "high"
+  },
+  "shared_analysis": {
+    "extracted_claims": [
+      {
+        "claim_id": "C1",
+        "claim_label": "multi-view yields more substitutable clusters",
+        "claim_text": "A multi-view clustering method that incorporates a Context Substitutability view (computed with AddCos), Paraphrase Similarity (PPDB2.0 score), Shared Translations, and WordNet synset similarity produces paraphrase sense clusters that are more substitutable (per B-Cubed F-score) and have wider coverage than prior automatically-derived inventories (e.g., PPDBClus) and comparable/better substitutability than WordNet/TWSI when averaged across parts of speech.",
+        "section_anchor": "Abstract; Sec. 3; Sec. 4.3; Sec. 6; Conclusion",
+        "evidence": [
+          "Abstract: claims improved substitutability and coverage.",
+          "Sec. 4.3: statement that all multiview inventories and SubstClusP are more substitutable than WordNet and TWSI in B-Cubed F-Score.",
+          "Sec. 6 and Table 5: B-Cubed F-score comparisons and Oracle/Best-Fit GAP summaries across inventories.",
+          "Table 2: earlier inventories' B-Cubed values (WordNet+ 0.841, TWSI 0.842, PPDBClus 0.736) cited as baselines."
+        ],
+        "uncertainty_flags": [
+          "Quantitative comparisons to baselines are reported but exact numeric B-Cubed values for SubstClus variants are not shown inline; inference relies on statements and Table 5 (GAP) rather than a direct table of subst(C,L) for every inventory.",
+          "The claim 'wider coverage' is asserted (e.g., greater than WordNet) but exact coverage numbers for SubstClus variants are not provided in the main text."
+        ]
+      },
+      {
+        "claim_id": "C2",
+        "claim_label": "SubstClus improves lexsub rankings via filtering",
+        "claim_text": "The generated SubstClus inventories can be used to filter outputs of existing lexical substitution ranking models (Syn.VSM, AddCos) to substantially improve oracle and practical (best-fit with a simple WSD heuristic) GAP scores, demonstrating their practical utility for lexical substitution.",
+        "section_anchor": "Abstract; Sec. 5; Sec. 6; Table 4; Table 5",
+        "evidence": [
+          "Sec. 5 describes oracle experiment (elevate one sense) and best-fit WSD heuristic (choose sense most represented among top-5 substitutes).",
+          "Table 4 demonstrates an example where filtering raises GAP from 0.47 to 0.78 for a sentence.",
+          "Sec. 6 and Table 5 report average Unfiltered, Oracle, and Best-Fit GAP scores for Syn.VSM and AddCos when filtered with various sense inventories; text states all inventories (except PPDBClus) can improve Best-Fit GAP in many cases."
+        ],
+        "uncertainty_flags": [
+          "Gains depend on oracle vs. best-fit: Best-Fit GAP is often lower than Oracle GAP, and WSD heuristic quality varies; improvements rely on effective WSD.",
+          "Aggregate numeric improvements are shown in Table 5 but not always accompanied by statistical significance tests."
+        ]
+      },
+      {
+        "claim_id": "C3",
+        "claim_label": "B-Cubed predicts lexsub potential",
+        "claim_text": "The proposed B-Cubed F-score based substitutability metric is predictive of a sense inventory's potential to improve lexical substitution (Oracle GAP correlates with substitutability), though WSD quality limits realized gains (Best-Fit GAP < Oracle GAP).",
+        "section_anchor": "Sec. 2; Sec. 6",
+        "evidence": [
+          "Sec. 2 defines substitutability as average extended B-Cubed F-score over targets.",
+          "Sec. 6 states that comparing B-Cubed F-Score to Oracle GAP shows the substitutability metric is generally a good indicator of potential for improvement, and notes Best-Fit GAP < Oracle GAP due to WSD errors."
+        ],
+        "uncertainty_flags": [
+          "No correlation coefficients or statistical measures are provided; 'generally a good indicator' is qualitative without reported effect sizes.",
+          "Dependence on β parameter (β=0.5 chosen) may affect metric behavior; sensitivity analysis not shown."
+        ]
+      },
+      {
+        "claim_id": "C4",
+        "claim_label": "Views are complementary; multi-view > single-view",
+        "claim_text": "Different combinations of views yield complementary benefits; multi-view solutions outperform single-view baselines, and the method generalizes across parts of speech though noun performance may require specialized treatment (TWSI remains strong on nouns).",
+        "section_anchor": "Sec. 3; Sec. 4.2; Sec. 6",
+        "evidence": [
+          "Sec. 3 lists four views (C, P, W, T) and rationale for each.",
+          "Sec. 4.2: experiments with single-view and combinations, notation SubstClusX described.",
+          "Sec. 6: text indicates multiview inventories outperform single-view and that SubstClus inventories exceed baselines overall, but nouns are an exception where TWSI performs best."
+        ],
+        "uncertainty_flags": [
+          "Specific per-view ablation numbers and statistical comparisons are not fully enumerated in the main text; claims about complementarity are supported qualitatively and via selected tables (Table 5) that focus on final GAP, not always isolating per-view contributions.",
+          "POS-specific generalization is claimed but detailed breakdowns beyond 'nouns-only' columns in Table 5 are limited."
+        ]
+      },
+      {
+        "claim_id": "C5",
+        "claim_label": "Multi-view NMF + selection criteria",
+        "claim_text": "Using multi-view non-negative matrix factorization with Silhouette Coefficient-based selection of k (2–10) on the paraphrase-paraphrase view yields effective clustering solutions for targets, with λi=0.01 and PPDB paraphrase score cutoff of 2.3 and 1000 sampled sentences for Context Substitutability view.",
+        "section_anchor": "Sec. 3.1; Sec. 3.1.1; Sec. 4.2; A.2; A.3",
+        "evidence": [
+          "Sec. 3.1 describes multi-view NMF implementation referencing Liu et al. (2013).",
+          "Sec. 3.1.1: XS built from 1000 random AGiga sentences; AddCos used for entries.",
+          "Sec. 4.2: PPDB paraphrases threshold >= 2.3 chosen via train data; k chosen from 2–10 using Silhouette Coefficient computed on XP.",
+          "A.2: optimization objective and λi = 0.01 stated; normalization of U columns described."
+        ],
+        "uncertainty_flags": [
+          "Hyperparameter choices (k range, λi, PPDB cutoff, number of sentences) are justified by training heuristics but sensitivity analyses are not presented.",
+          "Using XP for Silhouette may bias k to structure present in PPDB scores rather than other views; effect of this choice not quantified."
+        ]
+      }
+    ],
+    "identified_assumptions": [
+      {
+        "assumption_id": "A1",
+        "assumption_text": "AddCos scores computed over sampled AGiga sentences approximate human judgments of context substitutability sufficiently well to serve as an automated Context Substitutability view for clustering.",
+        "assumption_type": "operational",
+        "section_anchor": "Sec. 3.1.1; A.3",
+        "supporting_evidence": [
+          "Authors choose AddCos because it is described as 'simple but high-performing' and use it both for the C view and as a baseline ranking model.",
+          "Implementation details: AddCos uses word/context embeddings trained on AGiga (300-d, specific hyperparameters)."
+        ],
+        "risk_if_unmet": "If AddCos does not reliably reflect human substitutability across contexts, the C view can mislead clustering, producing clusters that are not substitutable in human judgment and degrading downstream filtering utility."
+      },
+      {
+        "assumption_id": "A2",
+        "assumption_text": "PPDB2.0 Score reliably indicates paraphrase similarity that aligns with sense membership (within-sense paraphrases have higher PPDB scores).",
+        "assumption_type": "explicit",
+        "section_anchor": "Sec. 3.1.2; Sec. 4.2",
+        "supporting_evidence": [
+          "Authors cite Pavlick et al. (2015) describing PPDB2.0 as supervised and aligning with human judgements.",
+          "Prior work (Cocos and Callison-Burch, 2016) used PPDB2.0 Score for clustering."
+        ],
+        "risk_if_unmet": "If PPDB2.0 conflates related but non-substitutable relations (e.g., antonyms, topical association), clusters may group non-substitutable paraphrases, reducing cluster substitutability and harming filtering."
+      },
+      {
+        "assumption_id": "A3",
+        "assumption_text": "Shared translations (translation probabilities from PPDB) serve as a reliable proxy for sense distinctions across paraphrases.",
+        "assumption_type": "implicit",
+        "section_anchor": "Sec. 3.1.4",
+        "supporting_evidence": [
+          "Authors reference literature using translations as proxy for sense, and describe construction of XF from PPDB translation probabilities with a threshold of 1e-9."
+        ],
+        "risk_if_unmet": "Noisy or sparse translation data (missing translations, low probability mass, polysemous foreign words) could produce misleading similarities, causing erroneous merges or splits in clusters."
+      },
+      {
+        "assumption_id": "A4",
+        "assumption_text": "Compositional WordNet synset embeddings (weighted lemma averages with PPDB-based weights) capture synset-paraphrase affinity useful for clustering.",
+        "assumption_type": "operational",
+        "section_anchor": "Sec. 3.1.3",
+        "supporting_evidence": [
+          "Authors define synset embedding vc as weighted average of lemma embeddings with weights max(1, PPDB2.0Score(l,t))."
+        ],
+        "risk_if_unmet": "If synset embeddings are poor (due to lemma coverage, embedding quality, or weighting heuristic), the W view could bias clustering toward WordNet structure that does not match substitutability in PPDB or CoInCo annotations."
+      },
+      {
+        "assumption_id": "A5",
+        "assumption_text": "Selecting k (number of clusters) via maximizing Silhouette Coefficient computed on XP (PPDB paraphrase-paraphrase view) yields k that is appropriate for multi-view clustering emphasizing substitutability.",
+        "assumption_type": "implicit",
+        "section_anchor": "Sec. 4.2",
+        "supporting_evidence": [
+          "Sec. 4.2 states they compute mean Silhouette using XP and choose k with highest value; cites prior utility in Cocos and Callison-Burch (2016)."
+        ],
+        "risk_if_unmet": "Silhouette on XP optimizes cohesion according to PPDB scores, potentially neglecting structure in the C (context) view; chosen k may under/over-split senses with respect to substitutability, impacting both intrinsic and extrinsic evaluation."
+      },
+      {
+        "assumption_id": "A6",
+        "assumption_text": "Using PPDB paraphrase candidates with score >= 2.3 (threshold tuned on CoInCo train) balances coverage vs. noise appropriately for general use.",
+        "assumption_type": "explicit",
+        "section_anchor": "Sec. 4.2",
+        "supporting_evidence": [
+          "Authors state threshold 2.3 gave best precision and recall on CoInCo training data and that it reduces coverage but decreases noise."
+        ],
+        "risk_if_unmet": "Threshold tuned on the CoInCo subset may not generalize to other targets or domains, reducing coverage or introducing biases in cluster composition; downstream lexsub filtering effectiveness may be sensitive to this cutoff."
+      },
+      {
+        "assumption_id": "A7",
+        "assumption_text": "Best-fit WSD heuristic (choose sense most represented among top-5 ranked substitutes) is a reasonable, practical method for sense selection in filtering experiments.",
+        "assumption_type": "operational",
+        "section_anchor": "Sec. 5.4",
+        "supporting_evidence": [
+          "Sec. 5.4 describes the heuristic and uses it to compute Best-Fit GAP; authors note it is simple and sometimes fails to find best cluster."
+        ],
+        "risk_if_unmet": "If the heuristic poorly predicts correct senses in many contexts, reported Best-Fit GAP will understate potential utility of the inventory and conflate inventory quality with WSD performance."
+      },
+      {
+        "assumption_id": "A8",
+        "assumption_text": "CoInCo annotations are an appropriate gold standard for measuring substitutability and for tuning/evaluating cluster quality.",
+        "assumption_type": "explicit",
+        "section_anchor": "Sec. 2; Sec. 4.1",
+        "supporting_evidence": [
+          "Sec. 2 and Sec. 4.1 use CoInCo annotations to compute extended B-Cubed and to select PPDB threshold; CoInCo contains multi-annotator substitutes across sentences."
+        ],
+        "risk_if_unmet": "CoInCo coverage and annotator behavior may not represent all substitutability phenomena (e.g., rare senses, POS distributions); tuning on this dataset risks overfitting clusters to its particular annotation patterns."
+      },
+      {
+        "assumption_id": "A9",
+        "assumption_text": "Training AddCos embeddings on Annotated Gigaword with the stated hyperparameters yields high-quality vectors for both AddCos ranking and context-view scoring.",
+        "assumption_type": "operational",
+        "section_anchor": "A.3",
+        "supporting_evidence": [
+          "A.3 specifies 300-d embeddings trained on AGiga with given word2vec parameters (min count 100, 5 epochs, etc.)."
+        ],
+        "risk_if_unmet": "If embeddings are suboptimal (vocabulary cutoff, under-training, domain mismatch), both the C view and AddCos baseline rankings may be degraded, impacting clustering and evaluation."
+      },
+      {
+        "assumption_id": "A10",
+        "assumption_text": "B-Cubed F-score with β=0.5 (precision-weighted) is an appropriate metric for measuring substitutability and correlates with lexsub performance.",
+        "assumption_type": "explicit",
+        "section_anchor": "Sec. 2; A.1",
+        "supporting_evidence": [
+          "Sec. 2 defines substitutability using extended B-Cubed and A.1 explains they use β=0.5 to emphasize precision over recall."
+        ],
+        "risk_if_unmet": "If emphasizing precision over recall biases assessment (e.g., penalizes broad but useful sense groupings), the metric may favor inventories that are precise but low-coverage or not optimal for lexsub filtering in practice."
+      }
+    ],
+    "argument_focus": [
+      "Establishing that a substitutability-focused multi-view clustering (including an embedding-based context view) yields sense clusters aligned with human lexical substitution judgments.",
+      "Demonstrating practical utility: applying SubstClus inventories as filters to improve GAP for existing lexsub rankers under oracle and simple WSD conditions.",
+      "Validating the substitutability metric (extended B-Cubed F-score with β=0.5) as predictive of potential lexsub gains."
+    ],
+    "contribution_targets": [
+      "Algorithm: adaptation of multi-view NMF (views: Context Substitutability, PPDB similarity, Shared Translations, WordNet synsets) and procedures (k selection, thresholds).",
+      "Resource: SubstClus sense inventories derived from PPDB at varying view combinations (e.g., SubstClusCPWT) intended for high coverage substitutable senses.",
+      "Evaluation: intrinsic substitutability measurement (extended B-Cubed) and extrinsic lexsub filtering experiments (Oracle and Best-Fit GAP) on CoInCo."
+    ],
+    "evaluation_targets": [
+      "Compute and report per-inventory subst(C,L) (extended B-Cubed) values and compare numerically to WordNet+, TWSI, PPDBClus (explicit per-inventory numbers for all SubstClus variants are required).",
+      "Show coverage statistics for SubstClus variants: |T|, avg synonyms per target, avg senses per target, and avg overlap with CoInCo (analogous to Table 2).",
+      "Provide per-view ablation results with numerical B-Cubed and GAP (Oracle and Best-Fit) to quantify each view's contribution.",
+      "Report correlation statistics between substitutability (B-Cubed) and Oracle/Best-Fit GAP (e.g., Pearson/Spearman, confidence intervals).",
+      "Conduct sensitivity analyses over key hyperparameters: PPDB cutoff (2.3), number of sampled sentences for C view (1000), λi values, k-range and Silhouette choice, and AddCos embedding training choices.",
+      "Provide statistical significance testing for GAP improvements (oracle and best-fit) over baselines, and variance estimates (e.g., per-target standard deviations, bootstrap).",
+      "Evaluate WSD heuristic performance separately (accuracy of best-fit sense selection) and analyze its effect on Best-Fit GAP gap to Oracle GAP."
+    ],
+    "uncertainty_flags": [
+      "Numerical values for SubstClus substitutability (B-Cubed) are not explicitly tabulated in the main text; reliance on qualitative statements may obscure effect sizes.",
+      "Correlation between B-Cubed and Oracle GAP is asserted qualitatively without reported correlation coefficients or significance.",
+      "Hyperparameter sensitivity (PPDB cutoff, λi, number of context sentences, k selection via Silhouette on XP) is not quantified; robustness is uncertain.",
+      "WSD heuristic is simple and acknowledged to be imperfect; reported Best-Fit GAP conflates inventory quality with WSD performance.",
+      "POS-specific behavior (nouns vs. others) is noted but not deeply analyzed; reasons for TWSI's superiority on nouns are not empirically dissected."
+    ],
+    "chaining_notes": [
+      "Downstream reviewers should (1) request explicit numeric substitutability (B-Cubed) values for each SubstClus variant and baselines to verify claim C1; (2) test sensitivity of clustering and filtering results to PPDB threshold, number of context sentences, λi, and k-selection method to validate A5 and A6; (3) evaluate correlation between B-Cubed and Oracle/Best-Fit GAP with statistical measures to validate claim C3; (4) separate inventory quality from WSD by (a) reporting WSD heuristic accuracy and (b) testing stronger WSD methods or an oracle-limited WSD to quantify achievable Best-Fit GAP; (5) inspect per-view ablation numbers and per-target case studies (including nouns) to assess claim C4.",
+      "Provide exact data artifacts: SubstClus inventories (lists of clusters per target), code/configs for multi-view NMF runs, sampled sentences for C view, trained embeddings, and scripts to reproduce GAP calculations; these are needed to reproduce and test extracted claims and assumptions."
+    ]
+  },
+  "specialist_reviews": [
+    {
+      "reviewer_id": "reviewer_1",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "reviewer_label": "GPT",
+      "cognitive_role": "structure_analyst",
+      "epistemic_variant": "logical-coherence-first",
+      "paper_type_assumed": "methodological",
+      "prior_stage_inputs": [
+        "SHARED_ANALYSIS"
+      ],
+      "analytical_summary": "The manuscript proposes SubstClus: a multi-view clustering pipeline (multi-view NMF) that combines a Context Substitutability view (AddCos scores over sampled sentences), PPDB paraphrase similarity scores, shared translation probabilities, and WordNet synset affinities to produce paraphrase sense clusters from PPDB. The paper measures cluster substitutability via an extended B-Cubed F-score (β=0.5) against CoInCo lexsub annotations, reports coverage characteristics, and demonstrates extrinsic utility by using sense clusters to filter ranked substitute lists from two lexsub ranking systems (Syn.VSM and AddCos), via oracle and a simple best-fit WSD heuristic. The overall argument chain claims (1) multi-view SubstClus yields more substitutable, higher-coverage inventories than prior automatic inventories and is comparable/better than WordNet/TWSI on average; (2) these inventories can substantially improve lexsub GAP scores when used as filters (oracle and best-fit); (3) substitutability (B-Cubed) predicts potential lexsub gains though WSD limits realized improvements; (4) views are complementary and multi-view solutions outperform single-view. The experimental pipeline is coherent and plausible, but several critical links in the argument are under-specified numerically or lack robustness analyses (e.g., explicit B-Cubed numbers for all SubstClus variants, statistical tests, hyperparameter sensitivity, and WSD accuracy breakdown). Some methodological choices (Silhouette on XP to pick k, PPDB cutoff 2.3, 1000 sampled sentences for AddCos C-view) are reasonable but not accompanied by sensitivity analysis, making downstream conclusions contingent on these design decisions. The paper presents qualitative and selected quantitative evidence supporting its claims, but the strength of inference would be improved by explicit numeric tables for substitutability per variant, correlation statistics between B-Cubed and Oracle/Best-Fit GAP, per-view ablations with numbers, and WSD heuristic accuracy statistics.",
+      "logical_argument_graph": [
+        "Premise P1: High-coverage, substitutable sense inventories can improve lexical substitution if senses group mutually substitutable paraphrases.",
+        "Premise P2: PPDB offers wide paraphrase coverage but is noisy; prior automatic clustering (PPDBClus) has low substitutability per B-Cubed.",
+        "Premise P3: Multiple complementary views (contextual substitutability, PPDB similarity, shared translations, WordNet affinity) encode different signals relevant to substitutability.",
+        "Implementation I1: Construct four view matrices (XS using AddCos over sampled AGiga sentences; XP using PPDB2.0 scores; XF using PPDB translation probs; XW using compositional WordNet synset embeddings).",
+        "Implementation I2: Use multi-view NMF (Liu et al. 2013) with λ_i = 0.01 and choose k via Silhouette computed on XP (k∈[2,10]).",
+        "Claim C1 (derived): SubstClus (multi-view NMF on chosen views) produces clusters with higher substitutability (B-Cubed F0.5) and wider coverage than prior automatic inventories and comparable/better substitutability than WordNet/TWSI on average.",
+        "Evidence E1: Reported B-Cubed baselines (WordNet+/TWSI/PPDBClus), textual statement that multiview inventories and SubstClusP exceed WordNet/TWSI in B-Cubed, Table 5 (GAP) shows Oracle/Best-Fit improvements.",
+        "Claim C2 (derived): Applying SubstClus as a filter to lexsub rankings (Syn.VSM/AddCos) improves GAP in oracle and (often) best-fit WSD settings.",
+        "Evidence E2: Oracle experiments elevate one sense and show GAP increases (Table 5). Best-fit WSD heuristic (top-5 majority) yields practical improvements for most inventories (except PPDBClus), with example Table 4 case.",
+        "Claim C3 (derived): The B-Cubed substitutability metric predicts inventory potential to improve lexsub (Oracle GAP correlates with B-Cubed), but WSD quality constrains realized Best-Fit gains.",
+        "Evidence E3: Qualitative comparison between substitutability and Oracle GAP; observation Best-Fit GAP < Oracle GAP attributed to WSD errors.",
+        "Claim C4 (derived): Different views are complementary; multi-view > single-view and generalize across POS, though nouns may require specialized handling (TWSI strong on nouns).",
+        "Evidence E4: Experiments with single-view and combined views (notation SubstClusX), qualitative statements and Table 5 POS breakdown showing TWSI advantage on nouns.",
+        "Conclusion: Multiview clustering with a substitutability C-view produces practical sense inventories that can improve lexsub ranking when combined with WSD; substitutability metric is useful to assess inventory utility."
+      ],
+      "identified_claims": [
+        {
+          "claim_id": "C1",
+          "claim_label": "multi-view yields more substitutable clusters",
+          "claim_text": "A multi-view clustering method that incorporates a Context Substitutability view (computed with AddCos), Paraphrase Similarity (PPDB2.0 score), Shared Translations, and WordNet synset similarity produces paraphrase sense clusters that are more substitutable (per B-Cubed F-score) and have wider coverage than prior automatically-derived inventories (e.g., PPDBClus) and comparable/better substitutability than WordNet/TWSI when averaged across parts of speech.",
+          "section_anchor": "Abstract; Sec. 3; Sec. 4.3; Sec. 6; Conclusion",
+          "evidence": [
+            "Text in Sec. 4.3: \"all multiview inventories and the SubstClusP single-view inventory are more substitutable than WordNet and TWSI in terms of B-Cubed F-Score.\"",
+            "Table 2: baseline B-Cubed values for WordNet+, TWSI, PPDBClus; used as comparison point.",
+            "Sec. 6 and Table 5: Oracle/Best-Fit GAP improvements using SubstClus inventories (extrinsic evidence of practical utility).",
+            "Figure 1 and qualitative cluster examples across views."
+          ],
+          "uncertainty_flags": [
+            "Numeric B-Cubed values for each SubstClus variant are not tabulated in the main text; claim relies on textual assertion rather than a clear per-variant table.",
+            "Coverage statistics for SubstClus variants (|T|, avg synonyms per target, avg senses per target, avg CoInCo overlap) are not reported explicitly like Table 2, so 'wider coverage' is asserted but not quantitatively shown."
+          ]
+        },
+        {
+          "claim_id": "C2",
+          "claim_label": "SubstClus improves lexsub rankings via filtering",
+          "claim_text": "The generated SubstClus inventories can be used to filter outputs of existing lexical substitution ranking models (Syn.VSM, AddCos) to substantially improve oracle and practical (best-fit with a simple WSD heuristic) GAP scores, demonstrating their practical utility for lexical substitution.",
+          "section_anchor": "Abstract; Sec. 5; Sec. 6; Table 4; Table 5",
+          "evidence": [
+            "Method description in Sec. 5.4: oracle elevates one sense's scores; best-fit elevates the sense most represented among top-5 substitutes.",
+            "Table 4 example: AddCos GAP improved from 0.47 to 0.78 in a single sentence by filtering with SubstClusCPWT.",
+            "Table 5: average Unfiltered, Oracle, and Best-Fit GAP scores for Syn.VSM and AddCos using inventories including SubstClus variants, showing improvements (Oracle and often Best-Fit)."
+          ],
+          "uncertainty_flags": [
+            "Aggregate GAP improvements shown but no statistical significance testing or variance estimates are reported to assess reliability of improvements across targets.",
+            "Best-fit improvement magnitudes vary by inventory and POS; performance depends heavily on WSD heuristic, acknowledged by authors."
+          ]
+        },
+        {
+          "claim_id": "C3",
+          "claim_label": "B-Cubed predicts lexsub potential",
+          "claim_text": "The proposed B-Cubed F-score based substitutability metric is predictive of a sense inventory's potential to improve lexical substitution (Oracle GAP correlates with substitutability), though WSD quality limits realized gains (Best-Fit GAP < Oracle GAP).",
+          "section_anchor": "Sec. 2; Sec. 6",
+          "evidence": [
+            "Definition of substitutability via extended B-Cubed F-score in Sec. 2 and A.1.",
+            "Text in Sec. 6 claiming that inventories scoring highest on B-Cubed also score well in Oracle GAP; authors note Best-Fit GAP lower due to WSD limitations."
+          ],
+          "uncertainty_flags": [
+            "No numerical correlation (Pearson/Spearman) or confidence intervals are reported between B-Cubed scores and Oracle/Best-Fit GAP, so the strength of the predictive relationship is qualitative.",
+            "Metric depends on β setting (β=0.5) and the choice of Et (overlap with CoInCo); sensitivity to these choices is not analyzed."
+          ]
+        },
+        {
+          "claim_id": "C4",
+          "claim_label": "Views are complementary; multi-view > single-view",
+          "claim_text": "Different combinations of views yield complementary benefits; multi-view solutions outperform single-view baselines, and the method generalizes across parts of speech though noun performance may require specialized treatment (TWSI remains strong on nouns).",
+          "section_anchor": "Sec. 3; Sec. 4.2; Sec. 6",
+          "evidence": [
+            "Description of four views in Sec. 3 and multi-view NMF rationale in Sec. 3.1.",
+            "Sec. 4.2 lists experiments with single and combined views (SubstClusX notation), and Sec. 6 reports that multiview variants outperform single-view in Oracle/Best-Fit GAP when aggregated over POS.",
+            "Table 5 shows POS-specific columns where TWSI outperforms SubstClus on nouns-only Best-Fit/Oracle GAP."
+          ],
+          "uncertainty_flags": [
+            "Per-view ablation numerical results (B-Cubed and GAP) for single-view vs combined views are not exhaustively enumerated in a clear table; complementarity is supported qualitatively and selectively.",
+            "The reason for TWSI's noun superiority is noted but not empirically decomposed (e.g., cluster sizes, coverage differences, or view-wise failure modes)."
+          ]
+        },
+        {
+          "claim_id": "C5",
+          "claim_label": "multi-view NMF implementation choices",
+          "claim_text": "Using multi-view non-negative matrix factorization with Silhouette Coefficient-based selection of k (2–10) on the paraphrase-paraphrase view yields effective clustering solutions for targets, with λi=0.01 and PPDB paraphrase score cutoff of 2.3 and 1000 sampled sentences for Context Substitutability view.",
+          "section_anchor": "Sec. 3.1; Sec. 3.1.1; Sec. 4.2; A.2; A.3",
+          "evidence": [
+            "A.2: multi-view NMF optimization objective and λi = 0.01 stated; column normalization technique described.",
+            "Sec. 3.1.1 describes XS constructed from 1000 AGiga sentences with AddCos entries.",
+            "Sec. 4.2 specifies PPDB paraphrases threshold 2.3 tuned on CoInCo train and k selection via Silhouette on XP."
+          ],
+          "uncertainty_flags": [
+            "Hyperparameter choices are justified via training heuristics but no sensitivity analyses are reported (effect of k range, λi variation, PPDB cutoff, or number of sentences).",
+            "Choosing k via Silhouette on XP biases k selection to PPDB structure; potential misalignment with C-view is not quantified."
+          ]
+        }
+      ],
+      "strengths": [
+        {
+          "title": "Clear algorithmic integration of complementary views",
+          "description": "The paper presents a coherent multi-view NMF pipeline that explicitly combines context-based substitutability, PPDB similarity, translations, and WordNet affinity into a single clustering framework tailored to substitutability.",
+          "evidence": [
+            "Sec. 3 describes the four views and justifies each with relation to substitutability.",
+            "A.2 specifies the multi-view NMF objective and normalization, following Liu et al. (2013)."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Practical extrinsic evaluation (sense-filtering)",
+          "description": "The work connects intrinsic cluster quality to a downstream task (lexical substitution) and demonstrates practical gains via oracle and simple best-fit WSD filtering experiments.",
+          "evidence": [
+            "Sec. 5 describes oracle and best-fit experiments; Table 5 reports Unfiltered/Oracle/Best-Fit GAP improvements for Syn.VSM and AddCos.",
+            "Table 4 provides a concrete example where filtering substantially increases GAP."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Substitutability-focused metric",
+          "description": "Adapting extended B-Cubed F-score with β=0.5 aligns the intrinsic evaluation with the precision-heavy needs of substitutability and links directly to lexsub performance.",
+          "evidence": [
+            "Sec. 2 and Appendix A.1 define substitutability via extended B-Cubed and justify β choice.",
+            "Paper ties B-Cubed to Oracle GAP in Sec. 6 discussion."
+          ],
+          "confidence": "medium"
+        },
+        {
+          "title": "Use of scalable resources and methods",
+          "description": "The approach uses PPDB and AddCos with embeddings trained on large corpora (AGiga) and leverages PPDB translation probabilities for added signal — all choices support scalability and wide coverage.",
+          "evidence": [
+            "Sec. 3.1.1 uses 1000 sampled AGiga sentences and AddCos; Sec. 3.1.4 uses PPDB translation probabilities; A.3 details embedding training on AGiga."
+          ],
+          "confidence": "high"
+        }
+      ],
+      "concerns": [
+        {
+          "issue_code": "M1",
+          "title": "Missing per-variant substitutability numbers",
+          "description": "The manuscript asserts that SubstClus variants outperform baselines on B-Cubed but does not provide an explicit table listing B-Cubed F0.5 values for each SubstClus variant, making it hard to verify claim magnitudes and compare variants.",
+          "severity": "major",
+          "evidence": [
+            "Shared analysis notes: \"Quantitative comparisons to baselines are reported but exact numeric B-Cubed values for SubstClus variants are not shown inline; inference relies on statements and Table 5 (GAP) rather than a direct table of subst(C,L) for every inventory.\"",
+            "Sec. 4.3 states multiview inventories are more substitutable but lacks per-variant numeric table."
+          ],
+          "actionable_suggestion": "Add a table enumerating subst(C,L) (extended B-Cubed F0.5) for each inventory and each SubstClus variant, with per-POS breakdown and confidence intervals (bootstrap).",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M2",
+          "title": "Lack of statistical testing and variability estimates",
+          "description": "Reported GAP improvements (Oracle and Best-Fit) and substitutability claims lack statistical significance tests and variance estimates across targets, leaving uncertainty about robustness and effect sizes.",
+          "severity": "major",
+          "evidence": [
+            "Table 5 shows average GAP values but no standard deviations, p-values, or bootstrap CI.",
+            "Shared analysis: \"Aggregate numeric improvements are shown but no statistical significance tests.\""
+          ],
+          "actionable_suggestion": "Report per-target distributions (means with SD/CI) and perform paired significance tests (e.g., bootstrap paired t-test) comparing Unfiltered vs Best-Fit/Oracle GAP and between inventories.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M3",
+          "title": "Insufficient sensitivity analyses on key hyperparameters",
+          "description": "Several design choices (PPDB cutoff 2.3, 1000 sampled sentences for C-view, λi=0.01, k selection using Silhouette on XP) are used without reported sensitivity analysis, so results may hinge on these settings.",
+          "severity": "major",
+          "evidence": [
+            "Sec. 4.2 states PPDB cutoff 2.3 chosen via CoInCo train but no cross-validation or wider sensitivity presented.",
+            "A.2 and Sec. 4.2 describe k selection via Silhouette on XP and λi selection but no ablation of these choices."
+          ],
+          "actionable_suggestion": "Add experiments varying PPDB threshold, number of sampled sentences (e.g., 250/500/2000), λi values (e.g., 0.001/0.01/0.1), and alternative k-selection criteria (Silhouette on C-view or a multi-view criterion); report impacts on B-Cubed and GAP.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M4",
+          "title": "Conflation of inventory quality and WSD performance",
+          "description": "Best-Fit GAP results conflate sense inventory quality with the WSD heuristic's accuracy; the paper acknowledges this but does not quantify WSD accuracy or isolate the inventory effect from WSD errors.",
+          "severity": "moderate",
+          "evidence": [
+            "Sec. 5.4 describes best-fit heuristic (majority among top-5) and Sec. 6 notes Best-Fit GAP < Oracle GAP due to WSD errors, but WSD accuracy is not reported.",
+            "Shared analysis: recommended to report WSD heuristic accuracy and test stronger WSD alternatives."
+          ],
+          "actionable_suggestion": "Report the accuracy of the best-fit WSD heuristic (how often it selects the oracle sense) and, if possible, experiment with a stronger WSD method (or multiple heuristics) to disentangle inventory limitations from WSD limitations.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M5",
+          "title": "Lack of explicit coverage statistics for SubstClus variants",
+          "description": "The claim of 'wider coverage' for SubstClus inventories is not supported by explicit numeric coverage statistics (|T|, avg synonyms per target, avg senses per target, avg overlap with CoInCo) analogous to Table 2 for baselines.",
+          "severity": "moderate",
+          "evidence": [
+            "Table 2 lists coverage for WordNet+, TWSI, PPDBClus but SubstClus variant coverage numbers are absent.",
+            "Shared analysis: requests explicit coverage statistics for SubstClus variants."
+          ],
+          "actionable_suggestion": "Provide a table like Table 2 for each SubstClus variant reporting |T|, avg synonyms per target, avg senses per target, and avg CoInCo overlap.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M6",
+          "title": "Qualitative claim about B-Cubed predictive power lacks correlation statistics",
+          "description": "The statement that B-Cubed is 'generally a good indicator' of Oracle GAP is made without reporting correlation coefficients, confidence intervals, or scatterplots to substantiate the predictive claim.",
+          "severity": "moderate",
+          "evidence": [
+            "Sec. 6 asserts correlation qualitatively; shared analysis flags absence of correlation coefficients.",
+            "No scatterplots or numerical correlations presented."
+          ],
+          "actionable_suggestion": "Compute and report Pearson/Spearman correlations between inventory subst(C,L) and Oracle GAP (and Best-Fit GAP), including p-values and confidence intervals; include a scatterplot or table of points for diagnostics.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M7",
+          "title": "POS-specific analysis underdeveloped",
+          "description": "The finding that TWSI outperforms SubstClus on nouns is acknowledged but not analyzed; explanations (coverage, cluster granularity, translation signal differences) are not empirically examined.",
+          "severity": "minor",
+          "evidence": [
+            "Sec. 6 notes noun performance exception and TWSI superiority on nouns-only columns in Table 5.",
+            "No per-POS breakdown of substitutability, per-view contributions, or case analysis provided."
+          ],
+          "actionable_suggestion": "Provide per-POS B-Cubed and GAP breakdowns, per-view ablation for nouns, and example case analyses explaining why SubstClus underperforms TWSI for nouns.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M8",
+          "title": "Silhouette-based k selection may bias toward PPDB structure",
+          "description": "Selecting k by maximizing Silhouette computed on XP (PPDB-paraphrase similarities) could favor clusterings that reflect PPDB similarity rather than contextual substitutability; the impact of this choice on C-view-driven clustering is not analyzed.",
+          "severity": "moderate",
+          "evidence": [
+            "Sec. 4.2 states Silhouette computed on XP is used for k selection citing Cocos and Callison-Burch (2016).",
+            "Shared analysis: notes XP-based Silhouette may bias k to PPDB structure rather than other views."
+          ],
+          "actionable_suggestion": "Compare k selected by Silhouette on XP to k selected by Silhouette on C-view and to multi-view criteria; report differences in B-Cubed and GAP for alternate k-selection methods.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "medium"
+        }
+      ],
+      "comparable_works": [
+        {
+          "citation_label": "Cocos & Callison-Burch (2016) - PPDBClus",
+          "relevance": "Baseline automatic PPDB clustering for comparison (high coverage, noisier clusters).",
+          "similarity_or_difference": "Similar in deriving sense clusters from PPDB, but uses spectral clustering with PPDB2.0 Score only; SubstClus adds context substitutability, translations, and WordNet views.",
+          "source_trace": "References in manuscript; Sec. 2.1 and 3.1.2"
+        },
+        {
+          "citation_label": "TWSI (Biemann, 2013)",
+          "relevance": "Crowdsourced sense inventory optimized for substitutability on nouns; used as strong baseline for nouns-only.",
+          "similarity_or_difference": "TWSI is human-crowdsourced and noun-focused; SubstClus is automatic and multi-POS using multiple signals.",
+          "source_trace": "Sec. 2.1 and Table 2; Sec. 6 discussion"
+        },
+        {
+          "citation_label": "AddCos (Melamud et al., 2015)",
+          "relevance": "Used as the C-view measure and as one of the lexsub ranking baselines (AddCos).",
+          "similarity_or_difference": "AddCos supplies contextual fit scores; SubstClus relies on AddCos for C-view construction but integrates additional views for clustering.",
+          "source_trace": "Sec. 3.1.1, Sec. 5.2, A.3"
+        },
+        {
+          "citation_label": "WordNet (Miller, 1995) / WordNet+",
+          "relevance": "Human-curated synset resource used as a baseline and as a W view in SubstClus.",
+          "similarity_or_difference": "WordNet+ is structured but limited coverage; SubstClus uses a compositional embedding approximation to bring WordNet structure into clustering.",
+          "source_trace": "Sec. 2.1; Sec. 3.1.3"
+        }
+      ],
+      "uncertainty_flags": [
+        "Absence of per-variant B-Cubed numeric table for SubstClus variants prevents direct verification of intrinsic-claim magnitudes.",
+        "No statistical tests or variance estimates reported for GAP improvements; robustness across targets unclear.",
+        "No sensitivity analysis for key hyperparameters (PPDB cutoff, C-view sample size, λi, k-selection method).",
+        "WSD heuristic accuracy is not reported, conflating inventory utility and disambiguation performance in Best-Fit GAP.",
+        "Correlation between B-Cubed and Oracle/Best-Fit GAP asserted qualitatively without correlation coefficients or significance."
+      ],
+      "alternative_interpretations": [
+        "Observed GAP improvements under Oracle filtering may primarily reflect improved candidate pruning (coverage matching CoInCo annotators) rather than better sense clustering; without per-variant coverage and per-target analyses, gains could be from pruning noise rather than better sense boundaries.",
+        "The C-view based on AddCos embeddings trained on AGiga might reinforce distributional co-occurrence patterns that coincide with PPDB similarity, so multi-view improvement could be driven mainly by PPDB signals with C-view providing only marginal alignment—ablation numbers are needed to rule this out.",
+        "Silhouette-based k selection on XP may produce k that favors PPDB-internal cohesion; the apparent substitutability gains might not generalize if k were chosen by C-view or held constant."
+      ],
+      "transparency_notes": [
+        "The paper documents implementation details (AddCos, embedding training parameters, multi-view NMF objective and λi) in the Appendix, which aids reproducibility.",
+        "Key artifacts needed for full reproducibility and verification are not listed explicitly (e.g., the resulting SubstClus inventories, sampled sentence sets for each target, code/configs for multi-view NMF runs); the shared analysis recommends releasing these.",
+        "The PPDB threshold selection was performed on CoInCo training set; explicit fold-wise cross-validation or external validation is not reported."
+      ],
+      "creativity_safeguard": {
+        "lacks_close_analogs": true,
+        "treat_as_innovation_signal": true,
+        "novelty_not_validity_note": "The combination of a substitutability-driven contextual view (AddCos over sampled sentences) with PPDB similarity, translations, and WordNet within a multi-view NMF framework appears not to have close direct analogs; this is a plausible novel contribution, but novelty does not guarantee robustness—several methodological analyses are needed to validate claims.",
+        "counterfactual_conditions_for_success": [
+          "If AddCos reliably models human substitutability across sampled contexts and the PPDB cutoff/general paraphrase candidates cover the senses reflected in CoInCo, then SubstClus clusters will align with human lexsub and filtering will yield sustained GAP improvements.",
+          "If Silhouette on XP selects k values consistent with sense granularity in C-view (i.e., PPDB similarity aligns with substitute-in-context patterns), multi-view NMF will combine complementary signals effectively.",
+          "If WSD methods (beyond the simple best-fit heuristic) can be improved or paired with stronger sense selection, Best-Fit GAP will approach Oracle GAP and realize the inventory's potential."
+        ]
+      },
+      "novelty_lenses": [
+        {
+          "lens": "engineering/system-building",
+          "verdict": "innovative-integration",
+          "rationale": "The paper integrates multiple existing signals in a practical clustering pipeline and demonstrates downstream extrinsic gains; this systems engineering that is novel in its specific combination and empirical demonstration.",
+          "evidence": [
+            "Sec. 3 describes the view integration and A.2 gives NMF implementation details; Sec. 6 shows extrinsic results (Table 5)."
+          ],
+          "uncertainty_flags": [
+            "Needs per-variant numeric subst scores and ablations to fully validate which components drive gains."
+          ]
+        },
+        {
+          "lens": "methodological",
+          "verdict": "incremental-method",
+          "rationale": "Multi-view NMF and AddCos are existing tools; contribution lies in the particular assembly and task-focused adaptation (substitutability emphasis), which is an incremental but meaningful methodological contribution.",
+          "evidence": [
+            "References to Liu et al. (2013) multi-view NMF and Melamud et al. (2015) AddCos; novelty arises from aligning views to substitutability metric."
+          ],
+          "uncertainty_flags": [
+            "Sensitivity analyses and ablation would clarify methodological novelty vs. empirical tuning."
+          ]
+        },
+        {
+          "lens": "evaluation/resource",
+          "verdict": "useful-resource",
+          "rationale": "If released, SubstClus inventories would be a high-coverage resource tailored to lexical substitution and could be practically useful for lexsub tasks and downstream applications needing substitutable senses.",
+          "evidence": [
+            "Paper claims higher coverage than WordNet and demonstrates filtering utility across lexsub models; Sec. 8 highlights resource intent."
+          ],
+          "uncertainty_flags": [
+            "Coverage claims need supporting tables and repository release to verify resource utility."
+          ]
+        }
+      ],
+      "confidence_interval": {
+        "lower": 0.15,
+        "upper": 0.85,
+        "rationale": "I am moderately confident (centered) that the method yields substantive improvements under the experimental setup described (supported by observed Oracle/Best-Fit GAP gains and plausible design). However, due to omitted per-variant numeric substitutability values, lack of statistical tests, and missing sensitivity and WSD analyses, confidence in the generality and robustness of the claimed magnitudes is reduced. The interval reflects uncertainty contingent on these methodological gaps."
+      }
+    },
+    {
+      "reviewer_id": "reviewer_2",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "reviewer_label": "GPT",
+      "cognitive_role": "methodology_auditor",
+      "epistemic_variant": "reproducibility-and-validity-first",
+      "paper_type_assumed": "methodological",
+      "prior_stage_inputs": [
+        "SHARED_ANALYSIS"
+      ],
+      "analytical_summary": "The paper proposes SubstClus: a multi-view non-negative matrix factorization (NMF) clustering method that combines four views—Context Substitutability (C) computed with AddCos over sampled AGiga sentences, Paraphrase Similarity (P) using PPDB2.0 scores, Shared Translations (T) from PPDB translation probabilities, and WordNet synset affinity (W)—to build substitutable paraphrase sense inventories from PPDB. It evaluates inventories intrinsically via an extended B-Cubed F-score (β=0.5) against CoInCo lexsub annotations and extrinsically by applying inventories as filters to improve GAP of two lexsub rankers (Syn.VSM, AddCos), using oracle and a simple Best-Fit WSD heuristic. Main empirical claims are (1) multiview SubstClus yields higher substitutability and broader coverage than prior automatic inventories and approaches WordNet/TWSI on average, (2) SubstClus inventories substantially raise Oracle and often Best-Fit GAP when used to filter rankings, (3) the B-Cubed substitutability metric predicts Oracle GAP potential, and (4) views contribute complementarily though nouns remain challenging. Methodologically, the pipeline includes PPDB score thresholding (≥2.3), sampling 1,000 sentences for C view, k∈{2..10} selection via mean Silhouette computed on XP, λi = 0.01 for NMF view weighting, and AddCos embeddings trained on Annotated Gigaword. The paper reports aggregated B-Cubed baselines (Table 2) and GAP results (Table 5) across inventories and POS splits, plus qualitative cluster examples and clustering visualizations.",
+      "logical_argument_graph": [
+        "Start: Lexical substitution benefits from sense-aware candidate grouping (motivation).",
+        "If we can cluster paraphrases into senses that are mutually substitutable in context (definition via B-Cubed), then inventories can be used to filter lexsub rankings to improve GAP.",
+        "Construct multiple complementary views (C,P,W,T) that each partially capture substitutability-related signals.",
+        "Apply multi-view NMF to jointly factorize views into consensus clusters (SubstClus).",
+        "Tune paraphrase candidate cutoff and choose k using Silhouette on XP to obtain final clusters per target.",
+        "Evaluate clusters intrinsically via extended B-Cubed against CoInCo (subst(C,L)).",
+        "Evaluate extrinsically by filtering Syn.VSM and AddCos ranking outputs and measure Unfiltered, Oracle, and Best-Fit GAP.",
+        "Observation: Multi-view/SubstClus inventories improve Oracle and often Best-Fit GAP relative to baselines; B-Cubed tracks Oracle GAP.",
+        "Conclusion: Multi-view NMF including a context-substitutability view yields high-coverage, substitutable inventories useful for improving lexsub when paired with adequate WSD."
+      ],
+      "identified_claims": [
+        {
+          "claim_id": "C1",
+          "claim_label": "multi-view yields more substitutable clusters",
+          "claim_text": "A multi-view clustering method that incorporates a Context Substitutability view (computed with AddCos), Paraphrase Similarity (PPDB2.0 score), Shared Translations, and WordNet synset similarity produces paraphrase sense clusters that are more substitutable (per B-Cubed F-score) and have wider coverage than prior automatically-derived inventories (e.g., PPDBClus) and comparable/better substitutability than WordNet/TWSI when averaged across parts of speech.",
+          "section_anchor": "Abstract; Sec. 3; Sec. 4.3; Sec. 6; Conclusion",
+          "evidence": [
+            "Sec. 4.3 states all multiview inventories and SubstClusP are more substitutable than WordNet and TWSI per B-Cubed F-Score.",
+            "Table 2 reports baseline B-Cubed for WordNet+ (0.841), TWSI (0.842), PPDBClus (0.736); text asserts SubstClus surpasses baselines though explicit per-variant B-Cubed numbers are not tabulated in the main text.",
+            "Table 5 shows GAP improvements for SubstClus variants compared to baselines, supporting practical utility."
+          ],
+          "uncertainty_flags": [
+            "Numeric B-Cubed values for each SubstClus variant are not provided inline; claim relies on qualitative statements and indirect evidence (GAP).",
+            "Coverage claims ('wider coverage') are asserted but exact coverage numbers for SubstClus variants are not shown in the main tables."
+          ]
+        },
+        {
+          "claim_id": "C2",
+          "claim_label": "SubstClus improves lexsub rankings via filtering",
+          "claim_text": "The generated SubstClus inventories can be used to filter outputs of existing lexical substitution ranking models (Syn.VSM, AddCos) to substantially improve oracle and practical (best-fit with a simple WSD heuristic) GAP scores, demonstrating their practical utility for lexical substitution.",
+          "section_anchor": "Abstract; Sec. 5; Sec. 6; Table 4; Table 5",
+          "evidence": [
+            "Sec. 5 describes oracle and Best-Fit filtering procedures.",
+            "Table 4 shows an example where filtering raises AddCos GAP from 0.47 to 0.78 for a sentence.",
+            "Table 5 reports Unfiltered, Oracle, and Best-Fit GAP for SubstClus variants and baselines, showing Oracle and often Best-Fit gains."
+          ],
+          "uncertainty_flags": [
+            "Best-Fit gains depend heavily on WSD heuristic performance; Best-Fit GAP is consistently lower than Oracle, and WSD accuracy is not reported separately.",
+            "No reported statistical significance tests or per-target variance for GAP differences."
+          ]
+        },
+        {
+          "claim_id": "C3",
+          "claim_label": "B-Cubed predicts lexsub potential",
+          "claim_text": "The proposed B-Cubed F-score based substitutability metric is predictive of a sense inventory's potential to improve lexical substitution (Oracle GAP correlates with substitutability), though WSD quality limits realized gains (Best-Fit GAP < Oracle GAP).",
+          "section_anchor": "Sec. 2; Sec. 6",
+          "evidence": [
+            "Sec. 2 defines substitutability as average extended B-Cubed F-score over targets; Sec. 6 states inventories with higher B-Cubed tend to have higher Oracle GAP.",
+            "Table 5 shows Oracle GAP ordering that broadly tracks claimed substitutability ranking."
+          ],
+          "uncertainty_flags": [
+            "No reported correlation coefficients (Pearson/Spearman) or confidence intervals linking B-Cubed and Oracle GAP; statement is qualitative.",
+            "Metric sensitivity to β (chosen 0.5) not analyzed."
+          ]
+        },
+        {
+          "claim_id": "C4",
+          "claim_label": "Views are complementary; multi-view > single-view",
+          "claim_text": "Different combinations of views yield complementary benefits; multi-view solutions outperform single-view baselines, and the method generalizes across parts of speech though noun performance may require specialized treatment (TWSI remains strong on nouns).",
+          "section_anchor": "Sec. 3; Sec. 4.2; Sec. 6",
+          "evidence": [
+            "Sec. 3 explains the four views and motivation for complementarity.",
+            "Sec. 4.2 describes experiments with single and combined views (SubstClusX notation).",
+            "Sec. 6 and Table 5 present GAP for SubstClus variants showing multiview variants generally near best performance and nouns showing TWSI strength."
+          ],
+          "uncertainty_flags": [
+            "Per-view ablation numerical results (e.g., B-Cubed and GAP deltas per view) are not fully enumerated; complementarity claim is supported qualitatively and indirectly.",
+            "POS breakdowns are limited to 'all words' and 'nouns only' columns; finer-grained POS or per-target analyses are absent."
+          ]
+        },
+        {
+          "claim_id": "C5",
+          "claim_label": "Multi-view NMF + selection criteria",
+          "claim_text": "Using multi-view non-negative matrix factorization with Silhouette Coefficient-based selection of k (2–10) on the paraphrase-paraphrase view yields effective clustering solutions for targets, with λi=0.01 and PPDB paraphrase score cutoff of 2.3 and 1000 sampled sentences for Context Substitutability view.",
+          "section_anchor": "Sec. 3.1; Sec. 3.1.1; Sec. 4.2; A.2; A.3",
+          "evidence": [
+            "A.2 details multi-view NMF objective and λi=0.01.",
+            "Sec. 3.1.1 describes XS built from 1000 AGiga sentences using AddCos.",
+            "Sec. 4.2: PPDB paraphrases threshold >=2.3 chosen via CoInCo train; k chosen via Silhouette on XP."
+          ],
+          "uncertainty_flags": [
+            "Hyperparameter choices appear heuristically tuned but sensitivity analyses are not presented; impact of choices on results is unknown.",
+            "Selecting k using Silhouette on XP may bias cluster granularity toward PPDB structure and away from context-driven substitutability—this selection effect is not quantified."
+          ]
+        }
+      ],
+      "strengths": [
+        {
+          "title": "Clear problem framing and operational substitutability metric",
+          "description": "The paper formulates substitutability concretely via extended B-Cubed F-score and ties inventory evaluation directly to lexsub annotations, providing a principled intrinsic target relevant to the downstream task.",
+          "evidence": [
+            "Sec. 2 defines substitutability and provides implementation details in A.1.",
+            "Use of CoInCo annotations as the gold standard for evaluation."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Multi-view design aligns with complementary signals",
+          "description": "Combining context-based substitutability, PPDB similarity, translations and WordNet synsets is conceptually well-motivated: each view targets distinct noisy proxies for sense/substitutability.",
+          "evidence": [
+            "Sec. 3 enumerates the four views with rationale.",
+            "Use of Multi-view NMF from Liu et al. (2013) to coerce consensus across views (A.2)."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Extrinsic evaluation demonstrating practical utility",
+          "description": "The paper goes beyond intrinsic clustering metrics by showing how inventories can be used to filter existing lexsub rankings, reporting both Oracle and Best-Fit GAP improvements.",
+          "evidence": [
+            "Sec. 5 describes filtering experiments and heuristics.",
+            "Table 5 contains Unfiltered, Oracle, and Best-Fit GAP for Syn.VSM and AddCos across inventories."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Reproducible methodological detail provided",
+          "description": "Supplemental material and main text include many implementation details (NMF objective, AddCos formula, embedding training parameters, thresholds) enabling reproduction attempts.",
+          "evidence": [
+            "A.2 and A.3 detail optimization objective, λi, embedding hyperparameters, and AddCos equation.",
+            "Sec. 4.2 and Sec. 3.1.1 specify PPDB cutoff, sentence sample size, and k-range."
+          ],
+          "confidence": "medium"
+        }
+      ],
+      "concerns": [
+        {
+          "issue_code": "M1",
+          "title": "Missing per-inventory substitutability numbers",
+          "description": "The central claim that SubstClus variants outperform baselines in B-Cubed substitutability is stated, but numerical B-Cubed F-scores for each SubstClus variant and per-POS breakdowns are not tabulated, preventing independent verification and effect-size assessment.",
+          "severity": "major",
+          "evidence": [
+            "Shared analysis notes that exact numeric B-Cubed values for SubstClus variants are not shown inline; Table 2 lists only baselines.",
+            "Sec. 4.3 claims all multiview inventories are more substitutable but gives no per-variant numbers."
+          ],
+          "actionable_suggestion": "Add a table listing subst(C,L) (B-Cubed β=0.5) for every inventory tested (all SubstClus variants, WordNet+, TWSI, PPDBClus), with confidence intervals or per-target stddev and POS splits.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M2",
+          "title": "Lack of statistical tests and variance estimates for GAP improvements",
+          "description": "Reported Oracle and Best-Fit GAP gains (Table 5) lack statistical significance testing or variance/CI reporting; it's unclear which improvements are robust versus sampling noise across targets.",
+          "severity": "major",
+          "evidence": [
+            "Table 5 provides point estimates for GAP but no standard errors, bootstrap CIs, or p-values.",
+            "Text statements assert improvements without quantifying uncertainty."
+          ],
+          "actionable_suggestion": "Provide per-target GAP distributions, bootstrap confidence intervals and paired significance tests (e.g., Wilcoxon or paired t-test) comparing Unfiltered vs Oracle and Best-Fit for each inventory and model.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M3",
+          "title": "Unquantified correlation between substitutability metric and Oracle GAP",
+          "description": "The claim that B-Cubed predicts Oracle GAP is plausible but unsupported by explicit correlation statistics, effect sizes, or visualization; dependency on β is unexamined.",
+          "severity": "moderate",
+          "evidence": [
+            "Sec. 6 claims inventories that score higher in B-Cubed also have higher Oracle GAP, but no correlation coefficients are given.",
+            "Shared analysis flags missing correlation coefficients."
+          ],
+          "actionable_suggestion": "Report Pearson and Spearman correlations between subst(C,L) and Oracle GAP across inventories (and per-POS), include scatter plots and sensitivity to β (e.g., β=0.2,0.5,1.0).",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M4",
+          "title": "Key hyperparameter sensitivity not analyzed",
+          "description": "Choices driving pipeline behavior—PPDB score cutoff (2.3), number of sampled sentences for C view (1000), λi = 0.01, k-range and Silhouette computed on XP, minimum translation prob threshold—are justified heuristically without sensitivity/ablation to assess robustness or dataset dependence.",
+          "severity": "major",
+          "evidence": [
+            "Sec. 4.2 notes threshold 2.3 chosen on CoInCo train; A.2 gives λi=0.01 but no alternatives tested.",
+            "Shared analysis explicitly lists missing sensitivity analyses."
+          ],
+          "actionable_suggestion": "Provide ablations showing performance (B-Cubed, Oracle/Best-Fit GAP) when varying PPDB cutoff (e.g., 1.5,2.0,2.3,3.0), number of sampled sentences (250,500,1000,2000), λi (0.0,0.01,0.1), and k-selection strategy (Silhouette on XP vs. on XS vs. fixed k).",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M5",
+          "title": "Conflation of inventory quality and WSD performance",
+          "description": "Best-Fit GAP results mix inventory quality with performance of a simple WSD heuristic (top-5 majority). WSD accuracy is not reported, so it's unclear whether lower Best-Fit vs Oracle reflects inventory limits or inadequate disambiguation.",
+          "severity": "major",
+          "evidence": [
+            "Sec. 5.4 defines Best-Fit heuristic; Sec. 6 acknowledges simple WSD fails often but provides no quantitative WSD accuracy.",
+            "Shared analysis recommends evaluating WSD separately."
+          ],
+          "actionable_suggestion": "Report Best-Fit WSD accuracy (match to oracle-chosen sense) per inventory; test stronger WSD methods (e.g., supervised classifier using context embeddings) or an oracle-limited WSD (partial information) to disentangle inventory vs WSD effects.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M6",
+          "title": "Choice of k via Silhouette on XP may bias toward PPDB structure",
+          "description": "Selecting the number of clusters using mean Silhouette computed on the paraphrase-paraphrase PPDB view (XP) risks optimizing cluster count for PPDB similarity rather than context-based substitutability, potentially misaligning final clusters with CoInCo judgments.",
+          "severity": "moderate",
+          "evidence": [
+            "Sec. 4.2: k chosen by selecting clustering with highest mean Silhouette calculated on XP.",
+            "Shared analysis flagged potential bias toward PPDB structure."
+          ],
+          "actionable_suggestion": "Compare k selection strategies: Silhouette on XP vs Silhouette on XS (context view) vs maximizing B-Cubed on held-out train CoInCo annotations; report resulting substitutability and GAP to show effect.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M7",
+          "title": "Insufficient coverage/overlap statistics for SubstClus inventories",
+          "description": "The paper asserts SubstClus has wider coverage than WordNet and better than PPDBClus, but does not present |T|, avg synonyms per target, avg senses per target, and CoInCo overlap for each SubstClus variant analogous to Table 2.",
+          "severity": "moderate",
+          "evidence": [
+            "Table 2 shows these statistics for baselines only.",
+            "Shared analysis requested coverage stats for SubstClus variants."
+          ],
+          "actionable_suggestion": "Provide a table mirroring Table 2 for all SubstClus variants (|T|, avg synonyms/tgt, avg senses/tgt, avg CoInCo overlap) so coverage/recall trade-offs can be judged.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M8",
+          "title": "AddCos as C view proxy not validated against human substitutability",
+          "description": "C view relies on AddCos scores computed over sampled AGiga contexts; the assumption that AddCos approximates human substitutability across contexts is plausible but not empirically validated in the paper (e.g., correlation of AddCos with CoInCo annotator frequencies).",
+          "severity": "moderate",
+          "evidence": [
+            "A.3 describes embeddings and AddCos usage; Sec. 3.1.1 justifies choice as 'simple but high-performing' but no validation versus CoInCo annotations is shown.",
+            "Shared assumptions list A1 notes risk if AddCos misaligns with human judgments."
+          ],
+          "actionable_suggestion": "Report correlation between AddCos scores and CoInCo annotator frequencies for held-out sentences and quantify how sampling size affects this alignment; consider alternative context scoring methods or ensembling.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M9",
+          "title": "Translation view sparsity/noise not assessed",
+          "description": "Shared Translations view uses PPDB translation probabilities with a low inclusion threshold (1e-9) but the paper does not report coverage, sparsity, or noise analyses for XF and its contribution magnitude.",
+          "severity": "minor",
+          "evidence": [
+            "Sec. 3.1.4 describes XF construction and threshold but no diagnostics.",
+            "Figure 1 and qualitative examples show final clusters but not per-view contribution quantitatively."
+          ],
+          "actionable_suggestion": "Provide statistics on XF density, number of foreign tokens per target, and an ablation showing W/T view gain/loss in B-Cubed and GAP to justify inclusion.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M10",
+          "title": "β choice (0.5) in B-Cubed not justified or sensitivity-tested",
+          "description": "Using β=0.5 emphasizes precision; authors should show how substitutability rankings and downstream correlations change with β to ensure conclusions are not an artifact of this weighting.",
+          "severity": "minor",
+          "evidence": [
+            "A.1 states β=0.5 but no sensitivity analysis provided.",
+            "Shared analysis flagged dependence on β."
+          ],
+          "actionable_suggestion": "Report subst(C,L) and correlations with Oracle GAP for β in {0.2,0.5,1.0} and discuss any changes in inventory ranking or conclusions.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "medium"
+        }
+      ],
+      "comparable_works": [
+        {
+          "citation_label": "Cocos & Callison-Burch (2016)",
+          "relevance": "Primary automatic PPDB clustering baseline (PPDBClus) used for comparison.",
+          "similarity_or_difference": "Both cluster PPDB paraphrases by sense; prior work uses spectral clustering solely on PPDB similarity while current paper adds a context substitutability view and additional views (translations, WordNet) and uses multi-view NMF.",
+          "source_trace": "Referenced throughout (Sec. 1, Sec. 3, Sec. 4.2); PPDBClus baseline in Table 2 and 5."
+        },
+        {
+          "citation_label": "TWSI (Biemann, 2013)",
+          "relevance": "Human/crowdsourced noun sense inventory baseline with high substitutability for nouns.",
+          "similarity_or_difference": "TWSI is crowdsourced and optimized for substitutability on nouns; SubstClus aims for automatic, high-coverage inventories across POSes—TWSI remains stronger on nouns per results.",
+          "source_trace": "Table 2, Sec. 2.1, Sec. 6 commentary."
+        },
+        {
+          "citation_label": "AddCos (Melamud et al., 2015)",
+          "relevance": "Used both as C view scoring function and as a lexsub baseline ranking model.",
+          "similarity_or_difference": "AddCos is a context-aware embedding similarity method; here it doubles as clustering input and evaluation baseline, creating interdependence that must be considered when interpreting improvements.",
+          "source_trace": "Sec. 3.1.1, Sec. 5.2, A.3."
+        },
+        {
+          "citation_label": "Liu et al. (2013) Multi-view NMF",
+          "relevance": "Algorithmic backbone for joint factorization across views.",
+          "similarity_or_difference": "SubstClus applies the prior multiview NMF formulation to paraphrase/sense clustering with domain-specific views and heuristics (k selection, λi=0.01).",
+          "source_trace": "Sec. 3.1 and A.2 reference Liu et al. (2013) and use their objective."
+        }
+      ],
+      "uncertainty_flags": [
+        "No per-SubstClus numeric B-Cubed table; effect sizes unclear (M1).",
+        "Absent significance testing and CIs for GAP improvements (M2).",
+        "No reported correlations or statistical measures linking B-Cubed and Oracle GAP (C3, M3).",
+        "Hyperparameter sensitivity (PPDB cutoff, sample size, λi, k-selection) not explored (M4).",
+        "Best-Fit conflates inventory and WSD quality; WSD accuracy not reported (M5).",
+        "Selecting k by Silhouette on XP may bias clusters toward PPDB structure, not substitutability (M6)."
+      ],
+      "alternative_interpretations": [
+        "GAP improvements could arise primarily from PPDB-derived signal (P view) and not from context-based clustering; since k selection and many diagnostics focus on XP, multi-view NMF might be dominated by PPDB similarity rather than contextual substitutability.",
+        "Observed gains in Oracle GAP may be large because oracle elevates ideally-aligned paraphrases; practical gains (Best-Fit) are modest and may be limited by WSD: the inventory may be suitable but not easily exploitable without stronger WSD.",
+        "AddCos used in both clustering C view and as a baseline ranking model could inflate apparent improvements for AddCos-based rankings (some circularity), while Syn.VSM results help mitigate this concern but need further disentangling."
+      ],
+      "transparency_notes": [
+        "Paper provides many implementation details (NMF objective, λi, AddCos formula, embedding hyperparameters, PPDB cutoff), which aids reproducibility, but crucial aggregate results (per-variant B-Cubed, coverage tables, variance estimates) are missing and should be released.",
+        "The authors state that training data (AGiga sampled sentences), chosen random seeds, and PPDB subsets were used; releasing sampled sentences, code, and final SubstClus inventories is necessary for full replication.",
+        "Potential methodological dependency: AddCos functions both as view construction (C) and as an evaluated lexsub model—authors should make this dependency explicit when interpreting AddCos ranking results."
+      ],
+      "creativity_safeguard": {
+        "lacks_close_analogs": true,
+        "treat_as_innovation_signal": true,
+        "novelty_not_validity_note": "While multi-view clustering itself is not novel, the particular combination of a context-substitutability view (computed from AddCos over sampled contexts) with PPDB similarity, translations, and WordNet in a multi-view NMF pipeline targeted at lexsub-filtering appears to be a novel engineering contribution; novelty does not substitute for rigorous validation—claims must be supported by the missing numerical and robustness analyses.",
+        "counterfactual_conditions_for_success": [
+          "If AddCos reliably correlates with human substitutability across sampled contexts and PPDB paraphrase scores effectively separate senses, then multi-view NMF will produce high-substitutability clusters that improve Oracle and Best-Fit GAP with reasonable WSD.",
+          "If PPDB similarity dominates clustering and aligns with substitutability, SubstClus can help as a filtering inventory even if C, T, W views are weaker; conversely, if PPDB conflates related but non-substitutable relations, multi-view fusion could amplify noise unless C view is strong.",
+          "If a stronger WSD method (supervised or context-embedding-based) is paired with SubstClus inventories, Best-Fit GAP could approach Oracle GAP, unlocking practical gains."
+        ]
+      },
+      "novelty_lenses": [
+        {
+          "lens": "engineering-integration",
+          "verdict": "incremental-but-useful",
+          "rationale": "Combines established components (PPDB, AddCos, translation signals, WordNet, multiview NMF) into a practical pipeline and demonstrates downstream utility for lexsub. The novelty lies in the specific integration and task-targeted tuning rather than a fundamentally new algorithm.",
+          "evidence": [
+            "Use of Liu et al.'s multi-view NMF with four domain-specific views and practical heuristics is new in this application.",
+            "Extrinsic evaluation showing filtering improves GAP."
+          ],
+          "uncertainty_flags": [
+            "Strength of novelty claim depends on robustness and reproducibility evidence (missing per-variant metrics and sensitivity analyses)."
+          ]
+        },
+        {
+          "lens": "evaluation-innovation",
+          "verdict": "moderately-novel",
+          "rationale": "Using extended B-Cubed F-score (β=0.5) specifically as a substitutability metric aligned to lexsub is a useful framing; the claim that this metric predicts Oracle GAP is interesting but requires quantified correlation.",
+          "evidence": [
+            "Section 2 formalizes substitutability via extended B-Cubed and A.1 documents implementation details."
+          ],
+          "uncertainty_flags": [
+            "No reported statistical correlation weakens the claim; sensitivity to β untested."
+          ]
+        }
+      ],
+      "confidence_interval": {
+        "lower": 0.15,
+        "upper": 0.85,
+        "rationale": "I am confident the method yields some improvement and that the experiments show promising qualitative trends (supported by provided GAP tables and examples). However, missing numerical per-inventory substitutability values, lack of statistical testing, unreported hyperparameter sensitivity, and conflation of WSD with inventory quality leave substantial uncertainty about effect sizes, robustness, and generalizability. The interval reflects medium-high confidence in directionality (multi-view helps) but only moderate confidence in magnitude and reproducibility."
+      }
+    },
+    {
+      "reviewer_id": "reviewer_3",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "reviewer_label": "GPT",
+      "cognitive_role": "novelty_assessor_incremental",
+      "epistemic_variant": "incremental-contribution lens",
+      "paper_type_assumed": "methodological",
+      "prior_stage_inputs": [
+        "SHARED_ANALYSIS"
+      ],
+      "analytical_summary": "The paper proposes SubstClus: a multi-view sense-clustering pipeline over PPDB paraphrases that explicitly incorporates a Context Substitutability view (AddCos scores over sampled sentences) together with Paraphrase Similarity (PPDB2.0 score), Shared Translations and WordNet-synset affinity, optimized via multi-view NMF (Liu et al., 2013). The authors measure intrinsic cluster quality with an extended B-Cubed F-score (precision-weighted, β=0.5) against CoInCo human lexsub annotations, and demonstrate extrinsic utility by using the clustered inventories as filters applied to existing lexsub ranking models (Syn.VSM, AddCos). Experiments report that multi-view variants (e.g., SubstClusCPWT) achieve higher substitutability (qualitatively stated) and higher Oracle and Best-Fit GAPs than several baselines (WordNet+, TWSI for nouns, PPDBClus), with ablations suggesting complementary contributions of views. The paper argues that substitutability (B-Cubed F-score) predicts Oracle GAP potential, but realized Best-Fit improvements are limited by WSD quality (simple heuristic used). Key methodological choices include PPDB score cutoff (2.3), sampling 1000 AGiga sentences per target for C view, k selection in 2–10 via Silhouette on XP (paraphrase-paraphrase), λi = 0.01 for multi-view NMF regularization, and AddCos embeddings trained on AGiga. Missing elements noted in the manuscript include exhaustive numeric tables of SubstClus B-Cubed scores per variant, coverage statistics per variant, statistical testing of reported GAP improvements, quantitative correlation between B-Cubed and Oracle/Best-Fit GAP, and sensitivity analyses for key hyperparameters (PPDB cutoff, sentence-sampling size, λi, k-selection procedure).",
+      "logical_argument_graph": [
+        "Input paraphrases from PPDB + multiple auxiliary signals (C, P, W, T) -> construct view matrices (XS, XP, XW, XF)",
+        "Apply multi-view NMF (with λi regularization) across views -> obtain consensus clusters (SubstClus variants)",
+        "Compute extended B-Cubed F-score (β=0.5) comparing clusters to CoInCo annotations -> intrinsic substitutability",
+        "Filter lexsub model rankings (Syn.VSM, AddCos) using SubstClus senses under oracle and simple WSD heuristics -> measure GAP improvements",
+        "Observe: multi-view variants show higher substitutability and higher Oracle/Best-Fit GAP than baselines -> conclude multi-view substitutability clustering improves lexsub",
+        "Secondary assertion: B-Cubed correlates with Oracle GAP, but WSD limits Best-Fit realization"
+      ],
+      "identified_claims": [
+        {
+          "claim_id": "C1",
+          "claim_label": "multi-view yields more substitutable clusters",
+          "claim_text": "A multi-view clustering method that incorporates a Context Substitutability view (computed with AddCos), Paraphrase Similarity (PPDB2.0 score), Shared Translations, and WordNet synset similarity produces paraphrase sense clusters that are more substitutable (per B-Cubed F-score) and have wider coverage than prior automatically-derived inventories (e.g., PPDBClus) and comparable/better substitutability than WordNet/TWSI when averaged across parts of speech.",
+          "section_anchor": "Abstract; Sec. 3; Sec. 4.3; Sec. 6; Conclusion",
+          "evidence": [
+            "Sec. 4.3: statement that all multiview inventories and SubstClusP are more substitutable than WordNet and TWSI in B-Cubed F-Score.",
+            "Table 5 reports Oracle/Best-Fit GAP improvements for SubstClus variants versus baselines, supporting practical effectiveness.",
+            "Table 2 gives baseline B-Cubed values for WordNet+, TWSI, and PPDBClus (0.841, 0.842, 0.736 respectively), establishing targets to surpass."
+          ],
+          "uncertainty_flags": [
+            "Numerical B-Cubed values for SubstClus variants are not explicitly tabulated in the main text; claim relies on qualitative statements and GAP tables rather than a full numeric subst(C,L) table.",
+            "Coverage claims ('wider coverage') are asserted but detailed coverage numbers for SubstClus variants are missing from the main text."
+          ]
+        },
+        {
+          "claim_id": "C2",
+          "claim_label": "SubstClus improves lexsub rankings via filtering",
+          "claim_text": "The generated SubstClus inventories can be used to filter outputs of existing lexical substitution ranking models (Syn.VSM, AddCos) to substantially improve oracle and practical (best-fit with a simple WSD heuristic) GAP scores, demonstrating their practical utility for lexical substitution.",
+          "section_anchor": "Abstract; Sec. 5; Sec. 6; Table 4; Table 5",
+          "evidence": [
+            "Table 4 provides a sentence-level example where AddCos GAP improves from 0.47 to 0.78 after sense-filtering using SubstClusCPWT.",
+            "Table 5 reports average Unfiltered, Oracle, and Best-Fit GAPs showing gains for SubstClus variants over unfiltered rankings and often over baselines."
+          ],
+          "uncertainty_flags": [
+            "Aggregate numeric improvements are reported in Table 5 but statistical significance testing and variance estimates are not provided.",
+            "Best-Fit improvements depend on the simple WSD heuristic; performance conflates inventory quality with WSD accuracy."
+          ]
+        },
+        {
+          "claim_id": "C3",
+          "claim_label": "B-Cubed predicts lexsub potential",
+          "claim_text": "The proposed B-Cubed F-score based substitutability metric is predictive of a sense inventory's potential to improve lexical substitution (Oracle GAP correlates with substitutability), though WSD quality limits realized gains (Best-Fit GAP < Oracle GAP).",
+          "section_anchor": "Sec. 2; Sec. 6",
+          "evidence": [
+            "Sec. 2 defines substitutability as average extended B-Cubed F-score over targets.",
+            "Sec. 6 states that comparing B-Cubed F-Score to Oracle GAP shows substitutability is generally a good indicator of potential for improvement."
+          ],
+          "uncertainty_flags": [
+            "No correlation coefficients (Pearson/Spearman), p-values, or confidence intervals are reported; 'generally a good indicator' is qualitative without effect sizes.",
+            "Metric behavior may depend on β parameter choice (β=0.5 used) and sensitivity to that choice is not explored."
+          ]
+        },
+        {
+          "claim_id": "C4",
+          "claim_label": "Views are complementary; multi-view > single-view",
+          "claim_text": "Different combinations of views yield complementary benefits; multi-view solutions outperform single-view baselines, and the method generalizes across parts of speech though noun performance may require specialized treatment (TWSI remains strong on nouns).",
+          "section_anchor": "Sec. 3; Sec. 4.2; Sec. 6",
+          "evidence": [
+            "Sec. 3 enumerates four views and their intended signals.",
+            "Sec. 4.2 describes experiments over seven combinations (single-view and combinations) and notation SubstClusX.",
+            "Sec. 6 and Table 5 show multi-view variants often perform well in GAP; authors note TWSI excels for nouns."
+          ],
+          "uncertainty_flags": [
+            "Per-view ablation numbers (B-Cubed and GAP) are not comprehensively enumerated; evidence for complementarity is mainly high-level and in GAP aggregated tables rather than ablation-specific statistics.",
+            "POS-specific variations are noted but not deeply analyzed; reasons for TWSI's superiority on nouns are not empirically examined."
+          ]
+        },
+        {
+          "claim_id": "C5",
+          "claim_label": "Multi-view NMF + selection criteria",
+          "claim_text": "Using multi-view non-negative matrix factorization with Silhouette Coefficient-based selection of k (2–10) on the paraphrase-paraphrase view yields effective clustering solutions for targets, with λi=0.01 and PPDB paraphrase score cutoff of 2.3 and 1000 sampled sentences for Context Substitutability view.",
+          "section_anchor": "Sec. 3.1; Sec. 3.1.1; Sec. 4.2; A.2; A.3",
+          "evidence": [
+            "Sec. 3.1 describes multi-view NMF; A.2 gives optimization objective and λi setting.",
+            "Sec. 3.1.1 and A.3 describe AddCos implementation and using 1000 AGiga sentences to construct XS.",
+            "Sec. 4.2 states PPDB paraphrase cutoff = 2.3 chosen via CoInCo train tuning and k chosen by Silhouette computed on XP."
+          ],
+          "uncertainty_flags": [
+            "Sensitivity analyses for PPDB cutoff, number of context sentences, λi, and k range/selection are not presented.",
+            "Using XP for Silhouette selection may bias k toward PPDB-internal structure; effect on substitutability-focused clustering is unquantified."
+          ]
+        }
+      ],
+      "strengths": [
+        {
+          "title": "Clear motivation tying clusters to substitutability",
+          "description": "The paper explicitly defines substitutability and aligns the clustering goal with lexical substitution evaluation, ensuring a meaningful downstream objective.",
+          "evidence": [
+            "Sec. 2 defines substitutability using extended B-Cubed and frames clustering toward lexsub utility.",
+            "End-to-end pipeline: cluster generation -> intrinsic B-Cubed -> extrinsic GAP filtering experiments."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Practical extrinsic evaluation with lexsub filtering",
+          "description": "Authors evaluate resource utility directly by filtering outputs of real lexsub models (Syn.VSM, AddCos) under oracle and best-fit WSD setups, demonstrating real-world applicability.",
+          "evidence": [
+            "Sec. 5 describes oracle and best-fit experiments; Table 5 reports unfiltered/oracle/best-fit GAPs.",
+            "Table 4 gives an illustrative sentence-level example of large improvement via filtering."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Integration of complementary signal types",
+          "description": "The method combines distributional (context), monolingual paraphrase scoring (PPDB), multilingual translations, and WordNet structure — a sensible ensemble that can reduce single-view failure modes.",
+          "evidence": [
+            "Sec. 3 enumerates C, P, T, W views; Sec. 3.1 explains construction of XS, XP, XF, XW."
+          ],
+          "confidence": "medium"
+        }
+      ],
+      "concerns": [
+        {
+          "issue_code": "M1",
+          "title": "Missing explicit numeric substitutability results per SubstClus variant",
+          "description": "The manuscript claims SubstClus variants have higher B-Cubed substitutability than baselines but does not provide a table with explicit FB3β values per variant, hindering verification and effect-size interpretation.",
+          "severity": "major",
+          "evidence": [
+            "Shared analysis notes qualitative claims in Sec. 4.3 but lacks numeric subst(C,L) per SubstClus variant; Table 2 shows baselines only."
+          ],
+          "actionable_suggestion": "Add a table listing per-inventory substitutability (FB3β) values and coverage stats (|T|, avg synonyms per target, avg senses per target, avg CoInCo overlap) for every SubstClus variant and baselines.",
+          "novelty_risk": true,
+          "methodological_flaw": false,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M2",
+          "title": "No statistical testing or variance estimates for GAP improvements",
+          "description": "Reported average GAP improvements (Oracle and Best-Fit) lack confidence intervals, per-target variance, or significance tests, so it is unclear whether observed differences are robust.",
+          "severity": "major",
+          "evidence": [
+            "Table 5 lists average GAPs but no standard errors, p-values, or bootstrap intervals are reported."
+          ],
+          "actionable_suggestion": "Report per-target GAP distributions, standard errors or bootstrap confidence intervals, and statistical tests (paired tests) comparing inventories and unfiltered baselines for both Oracle and Best-Fit GAP.",
+          "novelty_risk": true,
+          "methodological_flaw": false,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M3",
+          "title": "Insufficient analysis separating inventory quality from WSD performance",
+          "description": "Best-Fit GAP conflates inventory quality with the simple WSD heuristic's accuracy; without quantifying WSD accuracy and isolating its effect, conclusions about practical utility are incomplete.",
+          "severity": "major",
+          "evidence": [
+            "Section 5.4 describes the heuristic (most represented sense among top-5 substitutes), and Sec. 6 notes Best-Fit GAP < Oracle GAP but doesn't report WSD accuracy numbers."
+          ],
+          "actionable_suggestion": "Report WSD heuristic accuracy (fraction of instances where best-fit sense equals gold sense), provide ablation showing Best-Fit GAP with stronger WSD methods or upper bounds using partial oracle WSD, and analyze how WSD errors reduce Best-Fit from Oracle.",
+          "novelty_risk": true,
+          "methodological_flaw": false,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M4",
+          "title": "Hyperparameter sensitivity and robustness not analyzed",
+          "description": "Key operational choices (PPDB cutoff=2.3, 1000 sampled sentences for XS, λi=0.01, k range and selection via Silhouette on XP) are justified by heuristics but lack sensitivity analyses to show robustness or explain failure modes.",
+          "severity": "moderate",
+          "evidence": [
+            "Sec. 4.2 states the PPDB cutoff chosen on training data and that k is selected by Silhouette on XP; A.2 states λi = 0.01.",
+            "Shared analysis flags absence of sensitivity results."
+          ],
+          "actionable_suggestion": "Provide experiments varying PPDB cutoff, XS sample size, λi values, and k-selection method (e.g., Silhouette on XS or combined views), reporting B-Cubed and GAP to show stability.",
+          "novelty_risk": true,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M5",
+          "title": "Correlation claim between B-Cubed and Oracle GAP is under-specified",
+          "description": "The paper claims substitutability predicts Oracle GAP but offers no quantitative correlation analysis, effect sizes, or statistical significance.",
+          "severity": "moderate",
+          "evidence": [
+            "Sec. 6 qualitatively asserts substitutability is 'generally a good indicator' of potential but provides no correlation coefficients."
+          ],
+          "actionable_suggestion": "Compute Pearson and Spearman correlations between per-inventory (and per-target) FB3β and Oracle GAP, provide scatter plots, regression analyses and significance testing, and report any outliers.",
+          "novelty_risk": true,
+          "methodological_flaw": false,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M6",
+          "title": "Coverage claims not fully substantiated",
+          "description": "The manuscript asserts SubstClus provides wider coverage than WordNet but does not report per-variant coverage metrics analogous to Table 2 for baselines.",
+          "severity": "moderate",
+          "evidence": [
+            "Table 2 lists coverage for baselines; SubstClus coverage numbers are not shown in the same format in the main text."
+          ],
+          "actionable_suggestion": "Provide coverage table(s) for each SubstClus variant (|T|, avg synonyms per target, avg senses per target, CoInCo overlap), and discuss trade-offs between coverage and noise.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        }
+      ],
+      "comparable_works": [
+        {
+          "citation_label": "Cocos & Callison-Burch (2016) - PPDBClus",
+          "relevance": "Direct baseline: previous approach that clustered PPDB paraphrases (spectral clustering) and is explicitly compared against.",
+          "similarity_or_difference": "Both cluster PPDB; PPDBClus uses spectral clustering on PPDB2.0 scores as primary signal. SubstClus differs by adding context-substitutability, translations, and WordNet views and using multi-view NMF.",
+          "source_trace": "manuscript references (Sec. 2, Sec. 3)"
+        },
+        {
+          "citation_label": "TWSI (Biemann, 2013)",
+          "relevance": "Crowdsourced noun sense inventory optimized for substitutability; used as a strong baseline for nouns.",
+          "similarity_or_difference": "High substitutability for nouns due to crowdsourced process; SubstClus aims to generalize across POS but underperforms TWSI for nouns per manuscript.",
+          "source_trace": "manuscript references (Sec. 2.1, Sec. 6, Table 2/5)"
+        },
+        {
+          "citation_label": "AddCos (Melamud et al., 2015)",
+          "relevance": "Used both as the Context Substitutability view and as a ranking baseline for lexsub.",
+          "similarity_or_difference": "AddCos provides contextual fit scores used to construct XS and as an evaluation model; SubstClus leverages AddCos outputs rather than replacing it.",
+          "source_trace": "manuscript references (Sec. 3.1.1, A.3, Sec. 5.2)"
+        },
+        {
+          "citation_label": "Liu et al. (2013) multi-view NMF",
+          "relevance": "Algorithmic foundation for clustering approach.",
+          "similarity_or_difference": "SubstClus applies the multi-view NMF framework to paraphrase clustering with custom views and NMF normalization/settings (λi=0.01), adapting prior method to substitutability task.",
+          "source_trace": "manuscript references (Sec. 3.1, A.2)"
+        },
+        {
+          "citation_label": "WordNet (Miller, 1995) / WordNet+",
+          "relevance": "Established sense inventory baseline and source of synset view.",
+          "similarity_or_difference": "WordNet provides curated synsets; SubstClus uses compositional synset embeddings as one view to bias clustering toward WordNet-like structure where helpful.",
+          "source_trace": "manuscript references (Sec. 2.1, Sec. 3.1.3)"
+        }
+      ],
+      "uncertainty_flags": [
+        "Per-variant B-Cubed numbers for SubstClus are not given; intrinsic claims rely on qualitative statements.",
+        "No statistical tests or variance estimates accompany reported GAP improvements.",
+        "Correlation between substitutability (B-Cubed) and Oracle/Best-Fit GAP is asserted but not quantified.",
+        "Hyperparameter sensitivity (PPDB cutoff, XS sample size, λi, k-selection method) is not explored.",
+        "WSD heuristic performance is unreported; Best-Fit GAP conflates inventory quality with WSD accuracy."
+      ],
+      "alternative_interpretations": [
+        "Reported lexsub gains may be driven primarily by PPDB pruning (threshold 2.3) and candidate set restrictions rather than the multi-view clustering per se; a comparison that uses the same PPDB cutoff but no clustering would help isolate this.",
+        "Oracle GAP improvements can overstate practical utility if realistic WSD remains weak; Best-Fit gaps may reflect WSD limitations more than inventory deficiencies.",
+        "Using Silhouette on XP to select k may favor PPDB-internal cohesion; multi-view consensus may thus be indirectly shaped by PPDB structure rather than context substitutability, inflating intrinsic Silhouette/PPDB-aligned metrics."
+      ],
+      "transparency_notes": [
+        "Provide explicit per-inventory FB3β values and coverage tables for all SubstClus variants and baselines (analogous to Table 2).",
+        "Release SubstClus cluster inventories, sampled AGiga sentences used for XS, trained embeddings, and code/config for multi-view NMF to enable replication.",
+        "Report hyperparameter settings, and include sensitivity analyses and statistical tests for reported improvements."
+      ],
+      "creativity_safeguard": {
+        "lacks_close_analogs": false,
+        "treat_as_innovation_signal": false,
+        "novelty_not_validity_note": "Although the paper composes several existing signals and algorithms (PPDB scoring, AddCos context scoring, translation proxies, WordNet embeddings, and multi-view NMF), that combination—specifically optimizing for substitutability and demonstrating downstream lexsub filtering utility—is an incremental engineering and evaluation contribution. Novelty relates to the particular assembly and empirical validation, not an entirely new algorithmic primitive.",
+        "counterfactual_conditions_for_success": [
+          "If AddCos-based context scores accurately reflect human substitutability across a wide range of targets/contexts, the C view will provide a strong signal that improves clusters.",
+          "If k-selection via Silhouette on XP yields cluster counts aligned with substitutability rather than PPDB idiosyncrasies, multi-view consensus will produce useful inventories.",
+          "If WSD methods can be improved beyond the simple best-fit heuristic, Best-Fit GAP will better realize Oracle potential and demonstrate practical utility."
+        ]
+      },
+      "novelty_lenses": [
+        {
+          "lens": "incremental-contribution",
+          "verdict": "meaningful incremental advance",
+          "rationale": "The work integrates established components into a multi-view NMF pipeline explicitly optimized for substitutability, introduces the operationalization of a substitutability-oriented B-Cubed evaluation for paraphrase inventories, and demonstrates extrinsic gains on lexsub filtering. These are engineering and evaluation advances that materially improve upon PPDBClus and show practical benefits.",
+          "evidence": [
+            "Combination of contextual AddCos view with PPDB, translations, and WordNet is not standard in prior PPDB clustering work (Cocos & Callison-Burch 2016 used PPDB scores primarily).",
+            "Empirical Oracle/Best-Fit GAP improvements shown in Table 5 and illustrative example in Table 4."
+          ],
+          "uncertainty_flags": [
+            "Some numerical and statistical details required to quantify the magnitude and robustness of the incremental improvement are missing."
+          ]
+        },
+        {
+          "lens": "disruptive",
+          "verdict": "not disruptive",
+          "rationale": "The paper does not introduce fundamentally new algorithms or theoretical paradigms; it adapts multi-view NMF and existing similarity signals to a specific applied task. The novelty is in combination, tuning, and task-focused evaluation rather than in a transformative method.",
+          "evidence": [
+            "Core algorithm (multi-view NMF) is cited from Liu et al. (2013); views use known signals (AddCos, PPDB2.0, translation probabilities, WordNet).",
+            "Improvements are presented as practical gains for lexsub filtering rather than as a new representational or algorithmic breakthrough."
+          ],
+          "uncertainty_flags": [
+            "If further analyses (robustness, statistical significance, wider-domain tests) show consistently large gains, the practical impact could be larger than current presentation suggests."
+          ]
+        }
+      ],
+      "confidence_interval": {
+        "lower": 0.5,
+        "upper": 0.8,
+        "rationale": "I am moderately confident in the paper's claims about practical improvements from multi-view, substitutability-focused clustering because the manuscript provides coherent methodology and GAP tables showing gains. Confidence is reduced by missing per-variant intrinsic scores, lack of statistical testing, and absent hyperparameter sensitivity analyses; if those gaps are filled, confidence would rise toward the upper bound."
+      }
+    },
+    {
+      "reviewer_id": "reviewer_4",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "reviewer_label": "GPT",
+      "cognitive_role": "novelty_assessor_disruptive",
+      "epistemic_variant": "disruptive-thinking lens",
+      "paper_type_assumed": "methodological",
+      "prior_stage_inputs": [
+        "PAPER_CONTEXT",
+        "SHARED_ANALYSIS",
+        "MANUSCRIPT_CONTEXT",
+        "RETRIEVED_LITERATURE_AND_GUIDELINE_CONTEXT"
+      ],
+      "analytical_summary": "The paper proposes SubstClus, a multi-view sense-clustering pipeline for PPDB paraphrases that explicitly includes a Context Substitutability view (AddCos scores computed on sampled sentences) alongside Paraphrase Similarity (PPDB2.0 score), Shared Translations, and WordNet-synset affinity. Multi-view NMF (Liu et al., 2013 style) is used to find consensus clustering (k chosen from 2–10 by maximizing Silhouette computed on the PPDB paraphrase-paraphrase view XP). SubstClus inventories are evaluated intrinsically using an extended B-Cubed F-score (β=0.5) against CoInCo lexsub annotations (substitutability metric) and extrinsically as filters on existing lexsub rankers (Syn.VSM and AddCos) using unfiltered / oracle / best-fit GAP experiments. The paper argues (1) multi-view clustering with an explicit substitutability view yields clusters with higher substitutability and wider coverage than prior automatic inventories (PPDBClus) and comparable/better substitutability than WordNet/TWSI on average across POS; (2) SubstClus inventories can substantially improve lexsub GAP when used to filter rankings (oracle and best-fit with a simple WSD heuristic); (3) the proposed substitutability metric predicts maximal improvement potential (Oracle GAP correlates with B-Cubed), though realized Best-Fit gains are limited by WSD quality; (4) different views are complementary and multi-view combinations outperform single-view baselines overall, with nouns as a noted exception where TWSI remains strong. The experimental chain depends on several operational choices (PPDB score cutoff 2.3, 1000 sampled AGiga sentences for AddCos-based context view, λi = 0.01, Silhouette-on-XP k selection) whose sensitivity is not thoroughly quantified. The core conceptual novelty is treating substitutability as a first-class view in multi-view clustering and operationalizing an extrinsic-intrinsic chain that links substitutability-oriented clustering to concrete lexsub improvements.",
+      "logical_argument_graph": [
+        "Problem: lexsub systems often ignore explicit sense structure → can sense inventories improve rankings?",
+        "Define substitutability metric: extended B-Cubed F-score (β=0.5) computed between inventory clusters and CoInCo sentence-level substitute clusters (Sec.2)",
+        "Construct multi-view representations (C: AddCos paraphrase×sentence, P: PPDB paraphrase×paraphrase, T: paraphrase×translations, W: paraphrase×WordNet synsets) (Sec.3)",
+        "Apply multi-view NMF to jointly factorize views and produce consensus clustering V* (Sec.3.1; A.2)",
+        "Choose k per-target via maximizing Silhouette on XP (PPDB view) over k∈[2,10] (Sec.4.2)",
+        "Evaluate SubstClus inventories intrinsically with substitutability (B-Cubed) against CoInCo and compare to WordNet+, TWSI, PPDBClus (Sec.4.3; Table 2)",
+        "Evaluate extrinsically by using inventories to filter ranked candidate lists from Syn.VSM and AddCos and reporting Unfiltered/Oracle/Best-Fit GAP (Sec.5; Table 5)",
+        "Observe Oracle GAP aligns qualitatively with substitutability scores; Best-Fit is lower due to WSD heuristic errors → conclude substitutability metric predicts potential, realized gains limited by WSD (Sec.6)",
+        "Conclude multi-view + substitutability view yields practical, higher-coverage, substitutable inventories useful for lexsub filtering (Conclusion)"
+      ],
+      "identified_claims": [
+        {
+          "claim_id": "C1",
+          "claim_label": "multi-view yields more substitutable clusters",
+          "claim_text": "A multi-view clustering method that incorporates a Context Substitutability view (computed with AddCos), Paraphrase Similarity (PPDB2.0 score), Shared Translations, and WordNet synset similarity produces paraphrase sense clusters that are more substitutable (per B-Cubed F-score) and have wider coverage than prior automatically-derived inventories (e.g., PPDBClus) and comparable/better substitutability than WordNet/TWSI when averaged across parts of speech.",
+          "section_anchor": "Abstract; Sec. 3; Sec. 4.3; Sec. 6; Conclusion",
+          "evidence": [
+            "Sec. 3 introduces the multi-view approach and lists C, P, T, W views.",
+            "Sec. 4.3 states all multiview inventories and SubstClusP single-view are more substitutable than WordNet and TWSI in terms of B-Cubed claim.",
+            "Table 2 and Sec. 6 compare inventories (WordNet+, TWSI, PPDBClus) and claim SubstClus exceeds PPDBClus and rivals WordNet/TWSI on average."
+          ],
+          "uncertainty_flags": [
+            "Main text does not present a complete per-inventory numeric table of substitutability (B-Cubed) values for each SubstClus variant—statement is qualitative and relies on selected tables (Table 5 pertains to GAP, not direct subst values).",
+            "Coverage claims ('wider coverage') are asserted but exact coverage numbers for SubstClus variants (|T|, avg synonyms per target, avg senses per target, CoInCo overlap) are not provided in the main text."
+          ]
+        },
+        {
+          "claim_id": "C2",
+          "claim_label": "SubstClus improves lexsub rankings via filtering",
+          "claim_text": "The generated SubstClus inventories can be used to filter outputs of existing lexical substitution ranking models (Syn.VSM, AddCos) to substantially improve oracle and practical (best-fit with a simple WSD heuristic) GAP scores, demonstrating their practical utility for lexical substitution.",
+          "section_anchor": "Abstract; Sec. 5; Sec. 6; Table 4; Table 5",
+          "evidence": [
+            "Sec. 5 describes oracle and best-fit filtering procedures and the WSD heuristic.",
+            "Table 4 gives an illustrative example where filtering raises AddCos GAP from 0.47 to 0.78 for a sentence.",
+            "Table 5 reports Unfiltered/Oracle/Best-Fit GAP averages for both Syn.VSM and AddCos when filtered with sense inventories and supports general improvement claims (Sec.6)."
+          ],
+          "uncertainty_flags": [
+            "Best-Fit GAP improvements depend on the simple WSD heuristic that chooses the sense most represented among top-5 substitutes; heuristic accuracy is not separately reported, so inventory effect and WSD effect are confounded.",
+            "Aggregate GAP differences are shown but no statistical significance testing or variance estimates (confidence intervals / bootstrap) are provided."
+          ]
+        },
+        {
+          "claim_id": "C3",
+          "claim_label": "B-Cubed predicts lexsub potential",
+          "claim_text": "The proposed B-Cubed F-score based substitutability metric is predictive of a sense inventory's potential to improve lexical substitution (Oracle GAP correlates with substitutability), though WSD quality limits realized gains (Best-Fit GAP < Oracle GAP).",
+          "section_anchor": "Sec. 2; Sec. 6",
+          "evidence": [
+            "Sec. 2 defines substitutability as average extended B-Cubed F-score over targets.",
+            "Sec. 6 states inventories that score highest in B-Cubed also score well in Oracle GAP and notes Best-Fit GAP < Oracle GAP due to WSD errors."
+          ],
+          "uncertainty_flags": [
+            "No reported correlation coefficients, p-values, or effect sizes between subst(C,L) and Oracle GAP are provided; the claim is qualitative without statistical quantification.",
+            "Metric sensitivity to β (β=0.5 chosen) is not analyzed; different β values could alter the relationship to Oracle GAP."
+          ]
+        },
+        {
+          "claim_id": "C4",
+          "claim_label": "Views complementary; multi-view > single-view",
+          "claim_text": "Different combinations of views yield complementary benefits; multi-view solutions outperform single-view baselines, and the method generalizes across parts of speech though noun performance may require specialized treatment (TWSI remains strong on nouns).",
+          "section_anchor": "Sec. 3; Sec. 4.2; Sec. 6",
+          "evidence": [
+            "Sec. 3 enumerates the four views and their motivations (C,P,T,W).",
+            "Sec. 4.2 describes experiments with single-view and combinations (SubstClusX notation) and selecting k.",
+            "Sec. 6 and Table 5 show multi-view SubstClusCPWT generally performs well across metrics; text highlights nouns as exception with TWSI superior."
+          ],
+          "uncertainty_flags": [
+            "Per-view ablation quantitative contributions to B-Cubed and GAP are not fully enumerated in a complete table in the main text; support is qualitative and via selected aggregated GAP numbers.",
+            "POS-specific claims (nouns problematic) are noted but lack granular diagnostic analysis explaining why nouns differ (e.g., translation sparsity, PPDB noise, WordNet coverage)."
+          ]
+        },
+        {
+          "claim_id": "C5",
+          "claim_label": "NMF + selection choices",
+          "claim_text": "Using multi-view non-negative matrix factorization with Silhouette Coefficient-based selection of k (2–10) on the paraphrase-paraphrase view yields effective clustering solutions for targets, with λi=0.01 and PPDB paraphrase score cutoff of 2.3 and 1000 sampled sentences for Context Substitutability view.",
+          "section_anchor": "Sec. 3.1; Sec. 3.1.1; Sec. 4.2; A.2; A.3",
+          "evidence": [
+            "Sec. 3.1 details the multi-view NMF formulation and optimization (A.2 expands).",
+            "Sec. 3.1.1: XS built from 1000 random AGiga sentences with AddCos.",
+            "Sec. 4.2: PPDB cutoff 2.3 chosen on CoInCo train and k chosen with Silhouette on XP; A.2 says λi = 0.01 normalization."
+          ],
+          "uncertainty_flags": [
+            "Hyperparameter choices (k range, λi, PPDB cutoff, 1000 sentences) are justified by training heuristics but the manuscript lacks sensitivity analyses showing robustness to these settings.",
+            "Selecting k by Silhouette on XP biases tuning to the PPDB view; impact of that bias on substitutability-focused clusters is not quantified."
+          ]
+        }
+      ],
+      "strengths": [
+        {
+          "title": "Clear operationalization of substitutability",
+          "description": "The paper defines substitutability formally using extended B-Cubed F-score and ties it directly to lexsub annotations, providing a transparent intrinsic metric tailored to the task.",
+          "evidence": [
+            "Sec.2 defines substitutability and A.1 gives full extended B-Cubed formulation and β choice."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Innovative inclusion of context-based substitutability view",
+          "description": "Treating context-based AddCos scores aggregated across sampled sentences as an explicit clustering view is a conceptually strong move linking clustering objective to downstream lexsub use.",
+          "evidence": [
+            "Sec.3.1.1 describes XS using AddCos over 1000 AGiga sentences as the Context Substitutability view."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Combined intrinsic and extrinsic evaluation chain",
+          "description": "The paper evaluates inventories both by substitutability metric (intrinsic) and by measurable impact on lexsub rankings (extrinsic oracle and best-fit GAP), creating a practical evaluation pipeline.",
+          "evidence": [
+            "Sec.4.3 reports intrinsic substitutability claims; Sec.5 and Sec.6 present oracle and best-fit GAP experiments and Table 5."
+          ],
+          "confidence": "medium"
+        },
+        {
+          "title": "Use of established multi-view NMF machinery",
+          "description": "The authors leverage an existing, sensible multi-view NMF framework with column normalization and λ regularizers to combine heterogeneous views coherently.",
+          "evidence": [
+            "Sec.3.1 and A.2 describe adapting Liu et al. (2013) multi-view NMF and the optimization objective with λi = 0.01."
+          ],
+          "confidence": "high"
+        }
+      ],
+      "concerns": [
+        {
+          "issue_code": "M1",
+          "title": "Incomplete reporting of per-inventory substitutability numbers",
+          "description": "The paper claims higher B-Cubed substitutability for SubstClus variants versus baselines, but does not present a complete table of numeric B-Cubed values for every SubstClus variant and baselines, making claim verification difficult.",
+          "severity": "major",
+          "evidence": [
+            "Shared analysis notes numeric B-Cubed values for WordNet+, TWSI, PPDBClus in Table 2 but SubstClus variant B-Cubed numbers are not tabulated inline.",
+            "Sec.4.3 claims multiview and SubstClusP exceed WordNet/TWSI but numbers are omitted."
+          ],
+          "actionable_suggestion": "Include a complete table of subst(C,L) (extended B-Cubed) numeric values with per-inventory breakdown (all SubstClus variants and baselines), and provide per-POS breakdowns and variance estimates.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M2",
+          "title": "Hyperparameter sensitivity not analyzed",
+          "description": "Key operational choices (PPDB cutoff 2.3, 1000 sampled sentences for XS, λi=0.01, k-range and Silhouette on XP) may materially affect clustering and downstream GAP but the manuscript lacks sensitivity studies to establish robustness.",
+          "severity": "major",
+          "evidence": [
+            "Sec.4.2 states PPDB cutoff 2.3 chosen on train data; Sec.3.1.1 uses 1000 AGiga sentences; A.2 sets λi=0.01; k chosen by Silhouette on XP.",
+            "Shared analysis flags lack of sensitivity testing as a key uncertainty."
+          ],
+          "actionable_suggestion": "Run ablations/sensitivity sweeps for PPDB score cutoff, number of sampled sentences (e.g., 250/500/2000), λi values, and alternative k-selection criteria (e.g., Silhouette on C or consensus-based methods); report effect sizes and stability.",
+          "novelty_risk": true,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M3",
+          "title": "Confounding of inventory quality and WSD heuristic",
+          "description": "Best-Fit GAP mixes inventory quality with the performance of a very simple WSD heuristic (top-5 majority). Without separate reporting of WSD accuracy, Best-Fit GAP underestimates inventory potential and conflates two factors.",
+          "severity": "moderate",
+          "evidence": [
+            "Sec.5.4 defines best-fit heuristic but the paper does not report per-target WSD accuracy or how often best-fit equals oracle sense.",
+            "Sec.6 notes best-fit < oracle and suggests WSD errors limit gains but lacks quantified WSD performance."
+          ],
+          "actionable_suggestion": "Report WSD heuristic accuracy against gold sense labels (or gold substitute clusters), provide per-target confusion analyses, and evaluate filtering with stronger WSD methods (or a small held-out learned classifier) to disentangle inventory quality from WSD limitations.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M4",
+          "title": "No statistical tests or uncertainty quantification for GAP improvements",
+          "description": "Table 5 shows average GAP improvements, but there are no statistical significance tests, confidence intervals, or per-target variance estimates to assess whether improvements are robust and nontrivial.",
+          "severity": "major",
+          "evidence": [
+            "Table 5 lists average Unfiltered/Oracle/Best-Fit GAP across sets but no p-values or bootstrap CIs reported.",
+            "Shared analysis recommends significance testing and variance reporting as required evaluation targets."
+          ],
+          "actionable_suggestion": "Provide statistical tests (e.g., paired bootstrap or sign test) comparing Unfiltered vs Best-Fit and Oracle GAP per-inventory and report 95% confidence intervals and per-target standard deviations.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M5",
+          "title": "k-selection bias: Silhouette computed on PPDB view",
+          "description": "Choosing k by maximizing Silhouette on XP (PPDB paraphrase-paraphrase) risks biasing clustering toward PPDB-internal similarity rather than substitutability in context, potentially undermining the C view's contribution.",
+          "severity": "moderate",
+          "evidence": [
+            "Sec.4.2 explicitly states Silhouette computed on XP (paraphrase-paraphrase) is used to select k.",
+            "Shared analysis flags that using XP for Silhouette may bias k to PPDB structure rather than context structure."
+          ],
+          "actionable_suggestion": "Compare k selection strategies: Silhouette on C (context view), joint consensus Silhouette, or validation on a held-out substitutability criterion (CoInCo dev set); report how k choice affects B-Cubed and GAP.",
+          "novelty_risk": true,
+          "methodological_flaw": true,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M6",
+          "title": "Limited dataset/tuning dependence",
+          "description": "Many tuning decisions are made using CoInCo training partition and AGiga-based AddCos; results may overfit CoInCo annotation idiosyncrasies and not generalize to other lexsub datasets or domains.",
+          "severity": "moderate",
+          "evidence": [
+            "Sec.4.1 uses 327 CoInCo targets and tunes PPDB cutoff on CoInCo train; AddCos embeddings trained on AGiga described in A.3.",
+            "Shared analysis warns about risk of tuning on CoInCo leading to overfitting."
+          ],
+          "actionable_suggestion": "Evaluate SubstClus on another lexsub dataset (e.g., SemEval lexsub, if possible), or perform cross-validation / domain-split experiments; alternatively, show results when tuning parameters on a separate held-out dataset.",
+          "novelty_risk": true,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M7",
+          "title": "Missing per-view quantitative ablation table",
+          "description": "The claim that views are complementary is plausible, but the paper lacks a concise, numerical ablation table that shows per-view contribution to B-Cubed and GAP for each SubstClus combination.",
+          "severity": "minor",
+          "evidence": [
+            "Sec.4.2 and Sec.6 discuss experiments with single-view and multi-view combinations but full per-view ablation numbers are not systematically tabulated.",
+            "Figure 1 shows qualitative cluster examples but not numeric ablation results."
+          ],
+          "actionable_suggestion": "Provide a table with B-Cubed and Oracle/Best-Fit GAP per inventory variant (C, P, W, T, CP, CPW, CPWT) and per-POS breakdown to quantify each view's marginal contribution.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M8",
+          "title": "Translation view reliability concerns",
+          "description": "The Shared Translations view relies on PPDB translation probabilities thresholded at 1e-9; sparse or noisy translation signals (rare languages, polysemous foreign lemmas) could introduce spurious affinities.",
+          "severity": "minor",
+          "evidence": [
+            "Sec.3.1.4 describes constructing XF from PPDB translation probabilities with a threshold of 10^-9.",
+            "Shared analysis flagged translation noise as an implicit assumption risk (A3)."
+          ],
+          "actionable_suggestion": "Report coverage statistics and sparsity of XF per target; test clustering with/without the T view and analyze failure cases where translations hurt substitutability.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        }
+      ],
+      "comparable_works": [
+        {
+          "citation_label": "Cocos & Callison-Burch (2016) - PPDBClus",
+          "relevance": "Direct prior work clustering PPDB paraphrases by sense; serves as the main automatic-inventory baseline.",
+          "similarity_or_difference": "Both cluster PPDB paraphrases; PPDBClus used spectral clustering with PPDB score similarity alone, while SubstClus introduces a context-based substitutability view and multi-view NMF to prioritize substitutability.",
+          "source_trace": "Manuscript references Cocos and Callison-Burch, 2016 in Sec.1, Sec.2, Sec.3 and Table 2."
+        },
+        {
+          "citation_label": "WordNet / WordNet+",
+          "relevance": "Established structured lexicon baseline used for comparison in substitutability and lexsub filtering.",
+          "similarity_or_difference": "WordNet is curated synset structure (high precision, lower coverage); SubstClus aims for higher coverage and substitutability via automatic clustering, sometimes approximating synset behavior but learned from PPDB/context.",
+          "source_trace": "Manuscript uses WordNet+ throughout (Table 2, Sec.2, Sec.6)."
+        },
+        {
+          "citation_label": "TWSI (Biemann, 2013)",
+          "relevance": "Crowdsourced sense inventory optimized for substitutability (nouns) and used as a high-quality baseline for nouns.",
+          "similarity_or_difference": "TWSI is targeted, crowdsourced, and strong on nouns; SubstClus is automatic and broader coverage but performs worse on nouns per paper.",
+          "source_trace": "Table 2 and Sec.6 reference TWSI as nouns-only strong baseline."
+        },
+        {
+          "citation_label": "AddCos (Melamud et al., 2015)",
+          "relevance": "Contextual similarity metric used both as a view (C) and as one of the lexsub ranking baselines; close methodological overlap in using embedding-based context fit.",
+          "similarity_or_difference": "Paper reuses AddCos as a measurement tool integrated into clustering, whereas AddCos in prior work is a standalone lexsub model.",
+          "source_trace": "Sec.3.1.1 and A.3 describe AddCos usage and training on AGiga."
+        }
+      ],
+      "uncertainty_flags": [
+        "Absence of a complete numeric table for SubstClus B-Cubed values limits ability to verify intrinsic-claim effect sizes.",
+        "No correlation statistics reported for subst(C,L) vs Oracle GAP (no Pearson/Spearman, no CIs).",
+        "Hyperparameter choices (PPDB cutoff, 1000 sentences, λi, k selection criterion) lack sensitivity analysis; robustness uncertain.",
+        "Best-Fit GAP conflates sense inventory quality with WSD heuristic performance; WSD accuracy not reported.",
+        "POS-specific performance differences (nouns vs others) are noted but not deeply diagnosed or explained empirically."
+      ],
+      "alternative_interpretations": [
+        "Gains in GAP may partly stem from candidate pruning (PPDB cutoff 2.3) reducing noise rather than superior clustering per se; improved GAP could be due to smaller, cleaner candidate pools.",
+        "Choosing k by Silhouette on XP biases clusters toward PPDB-internal similarity; improvements could derive from aligning inventory to PPDB scoring that the lexsub models already exploit.",
+        "Oracle GAP alignment with B-Cubed could reflect shared dependence on PPDB-derived signals (P view) used both in clustering and candidate availability, rather than a causal substitutability generalization.",
+        "Observed improvements might be dataset-specific to CoInCo annotator behavior and not generalize to other lexsub datasets or domains."
+      ],
+      "transparency_notes": [
+        "Release full SubstClus inventories (cluster membership per target), code for multi-view NMF runs (including λ settings and initialization seeds), and the exact sampled 1000 AGiga sentences used for each target to enable reproduction.",
+        "Provide trained AddCos word/context embeddings and scripts used to compute AddCos scores (with random seeds and training logs) so context view can be reproduced.",
+        "Publish full per-target B-Cubed scores, per-inventory coverage statistics, per-inventory GAP distributions, and scripts to compute Oracle and Best-Fit GAP values."
+      ],
+      "creativity_safeguard": {
+        "lacks_close_analogs": true,
+        "treat_as_innovation_signal": true,
+        "novelty_not_validity_note": "The inclusion of an explicit, aggregated context-substitutability view into a multi-view clustering objective appears to be a novel framing relative to prior PPDB clustering work; however novelty is orthogonal to empirical validity — the method still requires rigorous robustness analyses (sensitivity, statistical tests, and disentangling WSD) to substantiate utility.",
+        "counterfactual_conditions_for_success": [
+          "If AddCos computed on a sufficiently large and domain-representative sentence sample reliably approximates human substitutability across many targets, then the context view will drive clusters toward human-like substitutability and extrinsic GAP improvements will generalize.",
+          "If k-selection and PPDB cutoff are robust (stable across reasonable ranges) and inventories are not overfitted to CoInCo, multi-view SubstClus should outperform PPDBClus broadly.",
+          "If WSD can be improved (even modestly) beyond the simple best-fit heuristic, Best-Fit GAP will approach Oracle GAP and demonstrate the practical utility of SubstClus for downstream systems.",
+          "If translation probabilities in PPDB are sufficiently dense and language-diverse for many targets, the T view can improve disambiguation for senses that are translation-distinct."
+        ]
+      },
+      "novelty_lenses": [
+        {
+          "lens": "disruptive-thinking",
+          "verdict": "Promising conceptual innovation",
+          "rationale": "Elevating substitutability to an explicit data view and integrating it into a multi-view clustering pipeline creates a tighter coupling between intrinsic sense structure and extrinsic lexsub performance—this reframes sense clustering objectives toward downstream utility rather than pure lexical relatedness.",
+          "evidence": [
+            "Sec.3.1.1 defines the context-substitutability view using AddCos aggregated across sentences, directly linking clustering features to substitutability.",
+            "Sec.5 links oracle/best-fit GAP experiments to the substitutability metric to show downstream relevance."
+          ],
+          "uncertainty_flags": [
+            "Empirical validation is incomplete without per-inventory B-Cubed numbers, sensitivity analyses, and correlation statistics; conceptual novelty does not yet have fully quantified empirical support."
+          ]
+        },
+        {
+          "lens": "incremental-comparison",
+          "verdict": "Moderate incremental advance",
+          "rationale": "Technically the work combines known components—PPDB signals, translation proxies, WordNet embeddings, multi-view NMF, and AddCos—so in engineering terms it is an integration and adaptation rather than wholly new algorithmic machinery. The primary novelty is the specific objective alignment (substitutability) and the engineering to scale it to PPDB.",
+          "evidence": [
+            "Manuscript builds on Liu et al. (2013) multi-view NMF and Cocos & Callison-Burch (2016) PPDBClus as baselines, while adding the C view and applied evaluation chain (Sec.3, Sec.4)."
+          ],
+          "uncertainty_flags": [
+            "Degree of conceptual novelty depends on how unique the C view formulation is relative to prior context-sensitive clustering attempts; without a survey of close precedents, novelty magnitude is somewhat uncertain."
+          ]
+        }
+      ],
+      "confidence_interval": {
+        "lower": 0.45,
+        "upper": 0.8,
+        "rationale": "I am moderately confident that the conceptual contribution (making substitutability an explicit clustering view and linking intrinsic substitutability to extrinsic lexsub filtering) is sound and potentially impactful based on the described methodology and reported qualitative/aggregate results. However the absence of full numeric B-Cubed tables, sensitivity analyses, statistical tests, and explicit WSD accuracy lowers confidence about the magnitude and generality of the empirical claims; thus a mid-range confidence interval is appropriate."
+      }
+    },
+    {
+      "reviewer_id": "reviewer_5",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "reviewer_label": "GPT",
+      "cognitive_role": "claim_verifier",
+      "epistemic_variant": "evidence-and-uncertainty-first",
+      "paper_type_assumed": "methodological",
+      "prior_stage_inputs": [
+        "SHARED_ANALYSIS",
+        "PRIOR_STAGE_DIGEST",
+        "PAPER_CONTEXT",
+        "MANUSCRIPT_CONTEXT"
+      ],
+      "analytical_summary": "The paper proposes SubstClus: a multi-view NMF-based clustering pipeline that combines a Context Substitutability view (AddCos scores on sampled sentences), PPDB2.0 paraphrase similarity, shared translation probabilities, and WordNet-synset affinities to induce substitutable paraphrase sense clusters from PPDB. The clusters are evaluated intrinsically via an extended B-Cubed F-score (β=0.5) against CoInCo lexsub annotations and extrinsically by using inventories as filters on rankings produced by Syn.VSM and AddCos. Main claims are (1) multi-view SubstClus yields more substitutable and higher-coverage inventories than prior automatic inventories and is comparable/better than WordNet/TWSI on average; (2) inventories improve lexsub GAP under oracle and (to a lesser extent) best-fit WSD; (3) the B-Cubed substitutability metric predicts Oracle GAP potential; (4) views are complementary and multi-view outperforms single-view, though nouns remain challenging. The manuscript provides qualitative examples, Table 2 baseline B-Cubed numbers, Table 5 GAP results for various SubstClus variants and baselines, and descriptions of implementation choices (PPDB cutoff 2.3, 1000 sampled sentences, λi=0.01, k∈[2,10] selected by Silhouette on XP). However, key quantitative links are underspecified: per-variant substitutability (B-Cubed) numbers for all SubstClus variants are not tabulated; correlation statistics between substitutability and Oracle/Best-Fit GAP are not reported; WSD heuristic accuracy is not provided; and sensitivity analyses / statistical significance testing are missing. These gaps leave uncertainty about effect sizes, robustness to hyperparameters, and the degree to which filtering gains stem from inventory quality versus WSD or lexsub model properties.",
+      "logical_argument_graph": [
+        "A1: PPDB provides many paraphrase candidates; but they are noisy and polysemous, so clustering by sense can help lexsub.",
+        "A2: Construct four views (C: AddCos context fit; P: PPDB2.0 scores; T: shared translations; W: WordNet synset affinity) to capture complementary signals related to substitutability.",
+        "A3: Use multi-view NMF (with λi=0.01) to find consensus clusters; pick k via Silhouette computed on XP (PPDB-paraphrase view) over k∈{2..10}; restrict paraphrases to PPDB score ≥ 2.3; sample 1000 AGiga sentences for C view.",
+        "A4: Evaluate clusters intrinsically via extended B-Cubed F-score (β=0.5) against CoInCo annotations to measure 'substitutability' per-target and averaged over targets.",
+        "A5: Demonstrate SubstClus clusters are more substitutable than baselines (WordNet+, PPDBClus, TWSI) and have greater coverage than WordNet via intrinsic measures and coverage statistics (Table 2 for baselines; SubstClus numbers claimed but not fully tabulated).",
+        "A6: Apply inventories as filters to lexsub rankings (Syn.VSM and AddCos) and measure Unfiltered, Oracle-Filtered, and Best-Fit (simple WSD) GAP to show extrinsic utility (Table 5).",
+        "A7: Show Oracle GAP correlates qualitatively with B-Cubed substitutability, implying substitutability predicts potential lexsub improvement; Best-Fit GAP < Oracle GAP highlights WSD limitations.",
+        "A8: Ablations (single-view vs multi-view) qualitatively indicate complementarity and that multi-view inventories outperform single-view ones; POS split indicates noun-specific weakness where TWSI is strong."
+      ],
+      "identified_claims": [
+        {
+          "claim_id": "C1",
+          "claim_label": "multi-view yields more substitutable clusters",
+          "claim_text": "A multi-view clustering method incorporating Context Substitutability (AddCos), Paraphrase Similarity (PPDB2.0), Shared Translations, and WordNet synset similarity produces paraphrase sense clusters that are more substitutable (per extended B-Cubed F-score) and have wider coverage than prior automatically-derived inventories (e.g., PPDBClus) and are comparable/better than WordNet/TWSI on average across parts of speech.",
+          "section_anchor": "Abstract; Sec. 3; Sec. 4.3; Sec. 6; Conclusion",
+          "evidence": [
+            "Sec. 4.3 states all multiview inventories and SubstClusP single-view are more substitutable than WordNet and TWSI per B-Cubed.",
+            "Table 2 provides baseline B-Cubed scores for WordNet+, TWSI, PPDBClus, showing PPDBClus has lower substitutability.",
+            "Sec. 6 and Table 5 show GAP performance where SubstClus inventories often outperform baselines in Oracle and Best-Fit GAP aggregated over POS."
+          ],
+          "uncertainty_flags": [
+            "Per-variant numeric B-Cubed scores for SubstClus variants are not tabulated in the main text; claim relies on textual statement rather than full numeric evidence.",
+            "Coverage claims for SubstClus (e.g., 'wider coverage than WordNet') are asserted, but explicit per-variant coverage statistics are missing from main tables."
+          ]
+        },
+        {
+          "claim_id": "C2",
+          "claim_label": "SubstClus improves lexsub rankings via filtering",
+          "claim_text": "SubstClus inventories can be used to filter outputs of lexsub ranking models (Syn.VSM, AddCos) to substantially improve oracle and practical (best-fit with a simple WSD heuristic) GAP scores.",
+          "section_anchor": "Sec. 5; Sec. 6; Table 4; Table 5",
+          "evidence": [
+            "Table 4 shows a sentence-level example where SubstClusCPWT filtering raised AddCos GAP from 0.47 to 0.78.",
+            "Table 5 reports Unfiltered, Oracle, Best-Fit GAP averages across inventories and models; many SubstClus variants show higher Oracle and Best-Fit GAP compared to unfiltered and PPDBClus in aggregate."
+          ],
+          "uncertainty_flags": [
+            "Best-Fit improvements depend strongly on simple WSD heuristic; Best-Fit GAP remains notably below Oracle GAP implying realized gains are limited by WSD quality.",
+            "No statistical significance testing or confidence intervals reported for GAP improvements; effect sizes and variability across targets are unclear."
+          ]
+        },
+        {
+          "claim_id": "C3",
+          "claim_label": "B-Cubed predicts lexsub potential",
+          "claim_text": "The extended B-Cubed F-score substitutability metric is predictive of an inventory's potential to improve lexsub (Oracle GAP correlates with substitutability), though WSD quality limits realized gains (Best-Fit GAP < Oracle GAP).",
+          "section_anchor": "Sec. 2; Sec. 6; A.1",
+          "evidence": [
+            "Sec. 2 formalizes substitutability as average extended B-Cubed (β=0.5) over targets.",
+            "Sec. 6 states that comparing B-Cubed to Oracle GAP shows substitutability is a good indicator; inventories scoring high in B-Cubed also score high in Oracle GAP."
+          ],
+          "uncertainty_flags": [
+            "No quantitative correlation statistics (Pearson/Spearman) or p-values are provided, so the strength of the relationship is not quantified.",
+            "Choice of β=0.5 biases metric toward precision; sensitivity of correlation to β not explored."
+          ]
+        },
+        {
+          "claim_id": "C4",
+          "claim_label": "views complementary; multi-view > single-view",
+          "claim_text": "Different combinations of views yield complementary benefits; multi-view solutions outperform single-view baselines, and the method generalizes across POS though noun performance may require special treatment (TWSI remains strong on nouns).",
+          "section_anchor": "Sec. 3; Sec. 4.2; Sec. 6; Figure 1",
+          "evidence": [
+            "Sec. 3 defines four views and rationale.",
+            "Experiments include single-view and multi-view variants (SubstClusC, P, W, T, CP, CPW, CPWT) and Figure 1 displays example clusters across views.",
+            "Sec. 6 notes multi-view inventories exceed baselines overall, but TWSI beats others on nouns."
+          ],
+          "uncertainty_flags": [
+            "Per-view ablation numeric results (B-Cubed per view and ablation GAP deltas) are not clearly tabulated, so the magnitude of each view's contribution is unclear.",
+            "POS-specific evaluation is reported in Table 5 for nouns vs all-words, but deeper diagnostic analysis is missing."
+          ]
+        },
+        {
+          "claim_id": "C5",
+          "claim_label": "specific method settings effective",
+          "claim_text": "Multi-view NMF with λi=0.01, PPDB score cutoff 2.3, 1000 sampled AGiga sentences for the C view, and k selected from 2–10 via Silhouette on XP yields effective clustering for targets.",
+          "section_anchor": "Sec. 3.1; Sec. 4.2; A.2; A.3",
+          "evidence": [
+            "Sec. 3.1.1 describes XS built from 1000 AGiga sentences; AddCos used for entries.",
+            "Sec. 4.2 states PPDB cutoff 2.3 chosen based on CoInCo train tuning; k chosen by maximizing Silhouette on XP over 2..10.",
+            "A.2 specifies multi-view NMF objective and λi=0.01."
+          ],
+          "uncertainty_flags": [
+            "Sensitivity analyses for these hyperparameters are not reported; robustness to PPDB cutoff, XS size, λi, and k-range is untested.",
+            "Choosing k via Silhouette on XP may bias solution toward PPDB structure rather than context substitutability; the effect is not quantified."
+          ]
+        }
+      ],
+      "strengths": [
+        {
+          "title": "Clear, task-aligned multi-view design",
+          "description": "The paper intentionally combines complementary signals (contextual substitutability, PPDB scores, translations, WordNet) to target substitutability, aligning method design with the lexsub application.",
+          "evidence": [
+            "Sec. 3 enumerates four views and justifies each in relation to substitutability.",
+            "Multi-view NMF is used to seek consensus clustering across views (Sec. 3.1)."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Practical extrinsic evaluation linking intrinsic metric to downstream benefit",
+          "description": "Authors evaluate inventories both intrinsically (extended B-Cubed) and extrinsically (Oracle and Best-Fit GAP on lexsub), demonstrating a concrete application and showing potential improvements.",
+          "evidence": [
+            "Sec. 2 defines substitutability metric; Sec. 5 describes oracle and best-fit filtering experiments; Table 5 reports GAP results."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Operationalized substitutability metric",
+          "description": "The use of extended B-Cubed with β=0.5 is a principled way to quantify substitutability against CoInCo annotations and makes the intrinsic objective explicit.",
+          "evidence": [
+            "Sec. 2 and Appendix A.1 provide formal definition and rationale for using B-Cubed and β=0.5."
+          ],
+          "confidence": "medium"
+        },
+        {
+          "title": "Scalable implementation choices",
+          "description": "The method uses large precompiled resources (PPDB2.0 XXL, AGiga embeddings) and an automated pipeline (1000 sampled sentences) making it scalable across many targets.",
+          "evidence": [
+            "Sec. 3.1.1 describes sampling from AGiga; A.3 describes training word/context embeddings on AGiga; PPDB2.0-XXL used as candidate pool (Sec. 4.2)."
+          ],
+          "confidence": "medium"
+        }
+      ],
+      "concerns": [
+        {
+          "issue_code": "M1",
+          "title": "Missing per-variant substitutability numbers",
+          "description": "The manuscript claims SubstClus variants outperform baselines on substitutability, but numeric extended B-Cubed F-scores per SubstClus variant (C/P/W/T/CP/CPW/CPWT) are not presented, preventing direct verification of intrinsic effect sizes.",
+          "severity": "major",
+          "evidence": [
+            "Shared analysis and Sec. 4.3 assert multiview inventories are more substitutable, but the only explicit B-Cubed numbers given are for baselines in Table 2 (WordNet+, TWSI, PPDBClus).",
+            "Prior-stage digests repeatedly note absence of per-variant B-Cubed table."
+          ],
+          "actionable_suggestion": "Add a table listing subst(C,L) (extended B-Cubed β=0.5) for every inventory evaluated (all SubstClus variants and baselines), with standard errors or CIs computed (e.g., bootstrap over targets).",
+          "novelty_risk": true,
+          "methodological_flaw": false,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M2",
+          "title": "No statistical testing or variability estimates for GAP improvements",
+          "description": "Reported Unfiltered/Oracle/Best-Fit GAP averages (Table 5) lack confidence intervals, per-target variance, or statistical significance tests, so it is unclear whether observed improvements are robust.",
+          "severity": "major",
+          "evidence": [
+            "Table 5 presents average GAPs but no SE/CI or p-values; text claims improvements but does not provide statistical corroboration.",
+            "Prior-stage reviewers flagged the absence of variance estimates and significance testing."
+          ],
+          "actionable_suggestion": "Provide per-inventory GAP standard deviations, bootstrap confidence intervals, and pairwise significance tests (e.g., paired bootstrap) comparing filtered vs unfiltered and against baselines for both Oracle and Best-Fit conditions.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M3",
+          "title": "Unquantified correlation between substitutability and Oracle/Best-Fit GAP",
+          "description": "The paper asserts that B-Cubed predicts Oracle GAP potential qualitatively, but offers no correlation coefficients or tests to quantify this association.",
+          "severity": "moderate",
+          "evidence": [
+            "Sec. 6 states inventories with high B-Cubed also have high Oracle GAP but no Pearson/Spearman values or scatterplots are reported.",
+            "Shared analysis recommends reporting correlation statistics."
+          ],
+          "actionable_suggestion": "Compute and report Pearson and Spearman correlations between per-target B-Cubed and Oracle GAP (and Best-Fit GAP), include scatterplots and significance tests, and analyze sensitivity to β.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M4",
+          "title": "No sensitivity analysis of key hyperparameters",
+          "description": "Critical choices (PPDB cutoff 2.3, 1000 sampled sentences for C view, λi=0.01, k-range and Silhouette-on-XP for k selection) are reasonable but untested for robustness; outcomes may depend heavily on these choices.",
+          "severity": "major",
+          "evidence": [
+            "Sec. 4.2 mentions threshold 2.3 tuned on CoInCo train but offers no cross-validation or alternate-threshold results; A.2 lists λi=0.01 as default without exploration.",
+            "Shared analysis emphasizes lack of hyperparameter sensitivity studies."
+          ],
+          "actionable_suggestion": "Report sensitivity experiments varying PPDB cutoff (e.g., 1.5, 2.0, 2.3, 3.0), XS sample sizes (e.g., 250, 500, 1000, 2000), λi values (e.g., 0.001, 0.01, 0.1), and alternative k-selection strategies (e.g., Silhouette on C or combined views). Present effect on B-Cubed and GAP.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M5",
+          "title": "Conflation of inventory quality and WSD performance in Best-Fit GAP",
+          "description": "Best-Fit GAP uses a simple heuristic (majority sense among top-5 model-ranked substitutes) whose accuracy is not reported; without measuring WSD accuracy, Best-Fit GAP cannot separate inventory utility from disambiguation effectiveness.",
+          "severity": "moderate",
+          "evidence": [
+            "Sec. 5.4 describes best-fit heuristic but no WSD accuracy figures are provided.",
+            "Sec. 6 notes Best-Fit < Oracle but does not quantify WSD errors' contribution."
+          ],
+          "actionable_suggestion": "Report accuracy of the Best-Fit heuristic (proportion of sentences where heuristic chooses the same sense as oracle), and/or compare Best-Fit GAP using stronger WSD methods or a controlled partial-oracle to quantify contribution of WSD errors.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M6",
+          "title": "Incomplete per-view ablation numbers",
+          "description": "Although single-view and multi-view experiments are run, the manuscript lacks a fine-grained numeric ablation table quantifying each view's marginal contribution to B-Cubed and GAP.",
+          "severity": "moderate",
+          "evidence": [
+            "Figure 1 gives qualitative cluster examples; Table 5 reports overall GAP for variants but not per-view intrinsic B-Cubed values or effect sizes.",
+            "Sec. 4.2 mentions experiments with seven combinations but detailed numeric ablation is missing."
+          ],
+          "actionable_suggestion": "Provide a table with per-view and incremental ablation results: B-Cubed and Oracle/Best-Fit GAP for C, P, W, T individually and for combinations, with variance estimates.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M7",
+          "title": "Lack of reproducibility artifacts and inventory release",
+          "description": "Claims about generated inventories' coverage and extrinsic utility require release of inventories, sampled sentences for C view, trained embeddings and code to reproduce multi-view NMF runs; the manuscript does not state whether these artifacts will be shared.",
+          "severity": "minor",
+          "evidence": [
+            "Shared analysis and chaining notes request exact artifacts; manuscript does not include link or mention of release.",
+            "Paper depends on various data processing choices (PPDB subset thresholding, sampled AGiga sentences, NMF initialization) that affect results."
+          ],
+          "actionable_suggestion": "Provide a public release (or supplementary archive) of SubstClus inventories (all variants), scripts/configs for multi-view NMF, sampled XS sentences, trained embeddings, and evaluation scripts with seeds to enable reproducibility.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        }
+      ],
+      "comparable_works": [
+        {
+          "citation_label": "Cocos & Callison-Burch (2016) PPDBClus",
+          "relevance": "Direct baseline: prior automatic clustering of PPDB paraphrases by sense using spectral clustering and PPDB2.0 scores.",
+          "similarity_or_difference": "Similar in using PPDB paraphrases and paraphrase scores; differs by adding context substitutability, translations, WordNet view, and using multi-view NMF instead of spectral clustering.",
+          "source_trace": "Manuscript cites Cocos and Callison-Burch (2016) (multiple sections: introduction, Sec. 3; Table 2)"
+        },
+        {
+          "citation_label": "TWSI (Biemann, 2013)",
+          "relevance": "Crowdsourced noun sense inventory designed for substitutability; strong baseline for nouns.",
+          "similarity_or_difference": "TWSI is human-centric and noun-focused; SubstClus aims for automated, high-coverage inventories across POS and claims TWSI still best for nouns.",
+          "source_trace": "Table 2 and Sec. 6 discussions"
+        },
+        {
+          "citation_label": "AddCos (Melamud et al., 2015)",
+          "relevance": "Used as the Context Substitutability view and as a ranking baseline in lexsub experiments.",
+          "similarity_or_difference": "AddCos provides context-fit scores used as features; here it is repurposed as direct view input to clustering and baseline ranking model.",
+          "source_trace": "Sec. 3.1.1, Sec. 5.2, Appendix A.3"
+        },
+        {
+          "citation_label": "PPDB2.0 (Pavlick et al., 2015)",
+          "relevance": "Source of paraphrase candidates and PPDB2.0 score used as P view and for translation probabilities.",
+          "similarity_or_difference": "PPDB used as resource; the paper augments it with additional views and clustering.",
+          "source_trace": "Sec. 3.1.2, 3.1.4, Sec. 4.2"
+        }
+      ],
+      "uncertainty_flags": [
+        "Per-variant intrinsic substitutability (extended B-Cubed) numbers for SubstClus variants are missing; magnitude of intrinsic improvement is uncertain.",
+        "No correlation coefficients reported for B-Cubed vs Oracle/Best-Fit GAP; strength of predictive claim is qualitative.",
+        "Lack of statistical significance / confidence intervals for GAP changes across inventories.",
+        "Sensitivity of results to PPDB cutoff, XS sample size, λi, k-selection strategy, and AddCos embedding training choices is untested.",
+        "WSD heuristic accuracy is unreported, conflating inventory quality with disambiguation performance in Best-Fit GAP."
+      ],
+      "alternative_interpretations": [
+        "Observed Oracle GAP gains could be primarily driven by the PPDB paraphrase-paraphrase structure (P view) and PPDB cutoff rather than the Context Substitutability view; without per-view effect sizes this remains possible.",
+        "Improvements in average GAP may be concentrated on a subset of targets with many annotator-overlapping paraphrases; average reporting may mask uneven gains and target-specific failures.",
+        "The Silhouette-on-XP k-selection may bias cluster granularity toward PPDB score topology; higher B-Cubed may reflect better alignment to PPDB-internal structure rather than genuine context-based substitutability.",
+        "Best-Fit GAP shortfall could indicate the inventory is useful but practical WSD methods used for selection are too weak; thus inventory utility might be higher if combined with better WSD, not necessarily a shortcoming of the inventory itself."
+      ],
+      "transparency_notes": [
+        "Essential reproducibility artifacts (SubstClus inventories for each variant, sampled AGiga sentences, trained embeddings, code for multi-view NMF and evaluation scripts) are not linked or indicated as released; providing them would reduce uncertainty.",
+        "Implementation details (random seeds, initialization, NMF convergence criteria, computational resources) are only partially specified in supplemental text; more exact configs help reproduce results.",
+        "Choice of β=0.5 in extended B-Cubed is disclosed (Appendix A.1) but its sensitivity is not explored; reporting results under alternative β values would increase transparency."
+      ],
+      "creativity_safeguard": {
+        "lacks_close_analogs": false,
+        "treat_as_innovation_signal": true,
+        "novelty_not_validity_note": "Incorporating an explicit context-based substitutability view into multi-view clustering for paraphrase sense induction is a relatively novel operationalization, but novelty alone does not guarantee robustness; missing quantitative specifics limit evaluation of validity.",
+        "counterfactual_conditions_for_success": [
+          "If AddCos scores accurately reflect human context substitutability across a wide variety of targets and senses, the C view will meaningfully steer clusters toward human-like substitutability.",
+          "If PPDB2.0 scoring and translations provide sufficiently complementary signals (high precision) and hyperparameters (PPDB cutoff, k-selection) are robust, multi-view consensus will reduce noise and improve substitutability.",
+          "If stronger WSD (than the simple best-fit heuristic) is used at inference time, Best-Fit GAP could approach Oracle GAP, demonstrating practical utility beyond oracle demonstrations."
+        ]
+      },
+      "novelty_lenses": [
+        {
+          "lens": "incremental-methodological",
+          "verdict": "moderately novel",
+          "rationale": "Combines existing components (PPDB, AddCos, multi-view NMF, translation signals, WordNet) in a task-focused way; novelty lies in treating substitutability as an explicit view and linking intrinsic substitutability to extrinsic lexsub filtering.",
+          "evidence": [
+            "Multi-view NMF (Liu et al., 2013) and PPDB clustering (Cocos & C-B 2016) are prior work; the C view and end-to-end demonstration for lexsub are new in combination."
+          ],
+          "uncertainty_flags": [
+            "Novelty does not address whether empirical gains are robust — missing numeric intrinsic scores and sensitivity analyses weaken confidence in impact."
+          ]
+        },
+        {
+          "lens": "disruptive-impact",
+          "verdict": "potentially useful but unproven",
+          "rationale": "If subst(C,L) reliably predicts Oracle GAP and inventories can be widely shared and paired with effective WSD, the approach could materially improve lexsub systems; current evidence lacks the statistical and robustness reporting required to confirm practical disruption.",
+          "evidence": [
+            "Table 5 shows Oracle GAP improvements across inventories suggesting potential; but Best-Fit GAP remains below Oracle and WSD is simplistic."
+          ],
+          "uncertainty_flags": [
+            "No statistical testing, per-target variability, or robust WSD experiments are reported, making generalization uncertain."
+          ]
+        }
+      ],
+      "confidence_interval": {
+        "lower": 0.0,
+        "upper": 1.0,
+        "rationale": "I provide analytic judgments and flagged uncertainties but refrain from an accept/reject decision per instructions. The interval [0,1] reflects epistemic humility: many claims are plausible and partially supported by evidence in the manuscript, but missing quantitative details (per-variant B-Cubed, correlation stats, sensitivity analyses, significance testing, WSD accuracy) leave substantial uncertainty about effect sizes and robustness."
+      }
+    }
+  ],
+  "meta_review": {
+    "consensus_findings": [
+      "The paper presents a coherent, well-documented multi-view pipeline (multi-view NMF) combining a Context Substitutability view (AddCos), PPDB paraphrase scores, shared translations, and WordNet affinities to produce sense clusters from PPDB and evaluates them both intrinsically and extrinsically.",
+      "Intrinsic/extrinsic evaluation linkage is conceptually sound: the authors define substitutability via an extended B-Cubed F-score and demonstrate downstream relevance by using inventories to filter lexical substitution rankings (Unfiltered / Oracle / Best-Fit GAP).",
+      "Reported results and qualitative examples indicate the multi-view approach yields practical improvements (notably in Oracle GAP) relative to automatic baselines such as PPDBClus, and the method appears scalable (uses PPDB, AGiga-trained embeddings, and automated pipelines).",
+      "Multiple reviewers agree that the context/substitutability view is a meaningful and potentially novel contribution when integrated into a multi-view clustering objective targeted at lexical substitution utility.",
+      "All reviewers request additional quantitative detail and robustness analyses to establish effect sizes and generality (per-inventory B-Cubed numbers, coverage tables, statistical tests, hyperparameter sensitivity, WSD accuracy)."
+    ],
+    "disagreements": [
+      "Novelty assessment: some reviewers frame the contribution as an innovative integration that meaningfully reframes sense induction toward substitutability (novel conceptual signal), while others treat it as an incremental engineering combination of existing components (multi-view NMF, PPDB, AddCos, translations, WordNet).",
+      "Magnitude and generality of empirical gains: one reviewer (novelty-assessor-incremental) is relatively confident the method yields meaningful incremental advances given the presented GAP tables, whereas others emphasize that missing numeric intrinsic scores and lack of statistical testing significantly limit claims about magnitude and robustness.",
+      "Appropriate emphasis for revisions: methodology-focused reviewers prioritize reproducibility artifacts and statistical analyses, while novelty-focused reviewers prioritize conceptual framing and broader implications; these lead to different prioritizations in requested follow-up work."
+    ],
+    "uncertainty_hotspots": [
+      "Absence of explicit per-inventory intrinsic substitutability values: numeric extended B-Cubed F-score (β=0.5) for every SubstClus variant and baseline is not tabulated—prevents direct verification of C1.",
+      "Missing coverage statistics for SubstClus variants: |T|, average synonyms per target, average senses per target, and overlap with CoInCo analogous to Table 2 are not reported—clouds the 'wider coverage' claim.",
+      "No statistical tests or uncertainty estimates reported for GAP results (Oracle/Best-Fit/Unfiltered): lacking variance, confidence intervals, or paired significance tests leaves robustness of observed gains unclear.",
+      "Unquantified correlation between substitutability (B-Cubed) and Oracle/Best-Fit GAP: no Pearson/Spearman coefficients, p-values, scatterplots, or regression diagnostics are presented to substantiate the predictive claim (C3).",
+      "Hyperparameter sensitivity is untested: PPDB score cutoff (2.3), number of sampled sentences for the C view (1000), λi (0.01), k-selection range and criterion (Silhouette on XP) lack ablations—results could be dependent on these choices.",
+      "Confounding of inventory quality and WSD performance: Best-Fit GAP uses a simple heuristic whose accuracy is unreported; without measuring WSD selection accuracy, Best-Fit results conflate inventory utility and disambiguation effectiveness.",
+      "Potential k-selection bias: choosing k by maximizing Silhouette on the PPDB view (XP) may bias clusters toward PPDB-internal structure rather than context-driven substitutability, possibly inflating apparent benefits of P-centric signals.",
+      "Validity of AddCos as the C-view proxy: using AddCos scores aggregated over sampled AGiga sentences assumes alignment with human substitutability; reviewers request empirical validation (e.g., correlation with CoInCo annotator data).",
+      "Translation view sparsity/noise: contribution and coverage of the translations view (XF) are not quantified; sparse or noisy translation signals could hurt or have limited impact without diagnostics."
+    ],
+    "model_diversity_effects": [
+      "Role-driven focus produced complementary critique sets: structure_analyst emphasized logical coherence and missing numeric chains (per-variant subst scores); methodology_auditor stressed reproducibility, sensitivity analyses, and statistical testing; novelty assessors highlighted both conceptual originality (C-view) and the need to quantify empirical impact.",
+      "These role differences increased coverage of evaluation blind spots: where one reviewer saw acceptable detail, another flagged missing quantitative evidence—this multiplicity surfaces methodological risks (overfitting to CoInCo, hyperparameter dependence) and interpretation risks (inventory vs WSD conflation).",
+      "Divergent novelty judgments reflect the trade-off between conceptual framing (making substitutability an explicit view) and reuse of established tools: reviewers who prioritized disruptive potential focused on framing, while others prioritized empirical rigor and reproducibility.",
+      "Because reviewers used different lenses, the synthesis preserves controlled disagreement: reviewers converge on what to fix (more data, stats, ablations) while differing on how novel the assembly is; this diversity strengthens the set of targeted follow-up analyses."
+    ],
+    "editor_guidance": "Center the editorial decision on whether the authors can and should be asked to supply targeted empirical and transparency additions that are necessary to validate the paper's empirical claims. If the editorial path is to request a revision, ask authors to (1) provide a complete numeric table of per-inventory intrinsic substitutability (extended B-Cubed β=0.5) for all SubstClus variants and baselines with per-POS breakdowns and bootstrap/confidence intervals; (2) supply coverage statistics per inventory (|T|, avg synonyms per target, avg senses per target, average overlap with CoInCo); (3) report per-target distributions and statistical tests (paired tests or bootstrap CIs) for Unfiltered vs Oracle vs Best-Fit GAP to assess robustness; (4) compute and report correlation statistics (Pearson and Spearman) and scatterplots linking per-inventory and/or per-target B-Cubed to Oracle and Best-Fit GAP, with sensitivity to β; (5) present hyperparameter sensitivity analyses for PPDB cutoff, number of sampled sentences for the C view, λi, and k-selection strategies (including Silhouette on XS or multi-view selection); (6) report WSD heuristic accuracy (how often Best-Fit chooses oracle sense) and, if feasible, evaluate at least one stronger WSD method to disentangle inventory quality from disambiguation; and (7) release key artifacts (SubstClus inventories, sampled sentences used for XS, trained embeddings, code/configs) or commit to a public reproducibility package. Keep the editor's role central: the editor should evaluate whether these requested analyses are feasible within a revision and sufficient to address the main uncertainties before advancing the paper in the pipeline.",
+    "author_guidance": "To strengthen empirical claims and transparency, provide the following concrete deliverables and analyses: 1) A table enumerating extended B-Cubed F0.5 (substitutability) for every inventory evaluated (all SubstClus variants and baselines), with per-POS breakdowns and 95% bootstrap confidence intervals; 2) Coverage statistics for every inventory (|T|, average synonyms per target, average senses per target, average overlap with CoInCo) analogous to Table 2; 3) Per-target GAP distributions and paired statistical tests (e.g., paired bootstrap or Wilcoxon) comparing Unfiltered vs Best-Fit and vs Oracle for each inventory and lexsub model, reporting p-values and CIs; 4) Correlation analyses (Pearson and Spearman) between B-Cubed and Oracle/Best-Fit GAP (per-inventory and per-target), with scatterplots and sensitivity analysis over β (e.g., β ∈ {0.2,0.5,1.0}); 5) Ablation and sensitivity studies for key hyperparameters: PPDB cutoff (e.g., 1.5, 2.0, 2.3, 3.0), XS sample sizes (e.g., 250, 500, 1000, 2000), λi values (e.g., 0.001, 0.01, 0.1), and alternative k-selection (Silhouette on XS, Silhouette on each view, and a multi-view consensus criterion); 6) Quantify the WSD component: report the Best-Fit heuristic accuracy (fraction of oracle-sense matches), and, if possible, demonstrate Best-Fit with a stronger WSD (supervised or contextual classifier) or partial-oracle experiments to separate inventory utility from WSD limitations; 7) Provide per-view ablation tables (B-Cubed and GAP) showing the marginal contribution of C, P, W, T individually and in combinations; 8) Diagnostics for the C and T views: correlation between AddCos scores and CoInCo annotator frequencies, and density/sparsity statistics for the translation view; 9) Release reproducibility artifacts (final SubstClus inventories for each variant, sampled AGiga sentences for XS, trained embeddings, NMF initialization seeds and code/configs, evaluation scripts) or submit them as supplementary material; and 10) Where space allows, include targeted qualitative analyses of failure modes (e.g., noun cases where TWSI outperforms SubstClus) and discuss domain dependence and limitations.",
+    "transparency_report": [
+      "Well-documented aspects: The manuscript supplies detailed descriptions of the algorithmic pipeline (views construction, multi-view NMF objective, normalization), AddCos implementation and embedding training hyperparameters, PPDB usage and paraphrase cutoff choice rationale, and example clusters/visualizations—these appendices aid reproducibility.",
+      "Partially transparent aspects: Table 5 gives aggregated Unfiltered/Oracle/Best-Fit GAP averages and baseline B-Cubed numbers are provided for WordNet+, TWSI and PPDBClus, enabling partial cross-checks of extrinsic performance.",
+      "Insufficiently transparent aspects (requested): Per-inventory intrinsic substitutability numeric values for all SubstClus variants, per-inventory coverage statistics analogous to Table 2, per-target GAP distributions and variance estimates, hyperparameter sweep results, correlation statistics between B-Cubed and GAP, WSD heuristic accuracy, and concrete provenance artifacts (SubstClus inventories, sampled sentences, trained embeddings, NMF configs and seeds) are not currently available in the manuscript and are necessary for full verification and replication."
+    ],
+    "epistemic_limits": [
+      "Synthesis is constrained by reviewers' inability to run experiments or access the authors' artifacts; judgments rely on the manuscript's reported tables, text statements, and appendices. Where numeric evidence is absent (per-variant B-Cubed, coverage tables, statistical tests), reviewers identifed plausible interpretations but could not disambiguate which interpretation holds in the data. Reviewers also noted potential methodological couplings that the manuscript did not quantify (e.g., AddCos used both as a view and as a baseline ranking model, Silhouette k-selection on XP biasing toward PPDB structure). These gaps mean the present synthesis cannot assert the magnitude, generality, or causal driver(s) of observed gains—only that the paper is promising but requires the specified additional quantitative and reproducibility evidence to resolve key uncertainties."
+    ]
+  },
+  "human_facing_meta_review": {
+    "is_meta_review": true,
+    "summary": "The manuscript introduces SubstClus, a multi-view sense-clustering pipeline over PPDB that incorporates a Context Substitutability view (AddCos over sampled sentences), PPDB paraphrase scores, shared translations, and WordNet synset affinities via multi-view NMF. The authors evaluate inventories intrinsically with an extended B-Cubed F-score (β=0.5) against CoInCo lexsub annotations and extrinsically by using inventories to filter lexical substitution rankings (Syn.VSM, AddCos) under Unfiltered / Oracle / Best-Fit GAP settings. Results and qualitative examples indicate multi-view variants can produce useful, higher-coverage substitutable clusters and raise Oracle GAP substantially; realized Best-Fit gains are limited by WSD quality. Reviewers find the conceptual framing (making substitutability an explicit clustering view) and the extrinsic evaluation chain valuable, but they identify missing quantitative reporting, statistical testing, hyperparameter sensitivity analyses, and reproducibility artifacts that limit assessment of effect sizes and robustness.",
+    "strengths": [
+      "Clear task alignment: substitutability is operationalized formally via extended B-Cubed (β=0.5) and tied directly to lexical substitution evaluation.",
+      "Coherent multi-view design: combines context (AddCos), PPDB scores, translations, and WordNet affinity within a multi-view NMF framework to seek consensus clusters.",
+      "Practical extrinsic evaluation: inventories are applied as filters to real lexsub ranking models with Oracle and Best-Fit GAP measurements demonstrating downstream relevance.",
+      "Scalable engineering: uses PPDB2.0 and AGiga-trained embeddings and provides implementation-level detail (NMF objective, AddCos parameters) in appendices."
+    ],
+    "limitations": [
+      "Missing per-inventory intrinsic substitutability numbers: the manuscript asserts SubstClus variants outperform baselines on B-Cubed but does not present an explicit numeric table of extended B-Cubed (β=0.5) values for each SubstClus variant and POS splits, preventing direct verification of C1.",
+      "No statistical tests or uncertainty estimates for GAP: reported Unfiltered/Oracle/Best-Fit GAP averages lack variance estimates, confidence intervals, or paired significance tests, so robustness and effect sizes of reported improvements are unclear.",
+      "Hyperparameter sensitivity unexamined: key operational choices (PPDB score cutoff = 2.3, XS sample size = 1000 sentences, λi = 0.01, k selection by Silhouette on XP) lack ablation/sensitivity analyses; results may depend on these heuristics (risk noted in A5/A6).",
+      "Inventory vs WSD confounding: Best-Fit GAP uses a simple WSD heuristic whose accuracy is not reported; Best-Fit results therefore conflate inventory quality with sense-disambiguation performance, obscuring how much benefit inventories alone provide."
+    ],
+    "open_questions": [
+      "Please provide a table listing extended B-Cubed F-score (β=0.5) for every inventory evaluated (all SubstClus variants and baselines), with per-POS breakdowns and uncertainty estimates (e.g., bootstrap 95% CIs).",
+      "Can you report per-inventory coverage statistics analogous to Table 2 (|T|, average synonyms per target, average senses per target, average overlap with CoInCo) for all SubstClus variants?",
+      "Provide statistical testing for GAP: what are per-target GAP distributions and paired significance tests (e.g., paired bootstrap) comparing Unfiltered vs Best-Fit and vs Oracle for each inventory and ranking model?",
+      "What is the accuracy of the Best-Fit WSD heuristic (fraction of instances where it selects the oracle sense)? If feasible, can you report Best-Fit GAP when using a stronger WSD (supervised or contextual classifier) or a partial-oracle to disentangle inventory vs WSD effects?"
+    ],
+    "consensus_snapshot": [
+      "Reviewers agree the conceptual contribution—treating substitutability as an explicit context-derived clustering view and integrating it into multi-view NMF—is sensible and potentially useful for lexical substitution.",
+      "All reviewers find the extrinsic evaluation (inventories used to filter lexsub rankings, measuring Oracle and Best-Fit GAP) appropriate and valuable as a demonstration of practical utility.",
+      "There is broad consensus that the manuscript currently lacks several quantitative and reproducibility elements necessary to validate effect sizes and robustness (per-variant B-Cubed tables, coverage stats, statistical tests, hyperparameter sensitivity, WSD accuracy)."
+    ],
+    "disagreement_snapshot": [
+      "Degree of novelty: some reviewers emphasize the novelty of making substitutability a dedicated clustering view and view the contribution as an important reframing; others treat the work as an incremental engineering integration of existing components (multi-view NMF, AddCos, PPDB).",
+      "Confidence in empirical magnitude: reviewers differ on how convincing the presented GAP tables are without statistical tests—some regard reported Oracle gains as promising evidence, others judge the missing variance/statistics as a serious barrier to assessing magnitude and generality."
+    ],
+    "uncertainty_snapshot": [
+      "Absence of numeric per-variant B-Cubed values prevents confirming intrinsic substitutability improvement claims and measuring effect sizes.",
+      "Without variance estimates or significance tests, it is uncertain which GAP improvements are robust across targets and which are sample- or target-specific.",
+      "Sensitivity of results to PPDB cutoff, AddCos sampling size, λi, and k-selection method is unknown; these hyperparameters may materially affect clustering and downstream performance.",
+      "The predictive relationship between substitutability (B-Cubed) and Oracle/Best-Fit GAP is asserted qualitatively but lacks quantified correlation coefficients and confidence intervals, leaving its strength unclear."
+    ],
+    "source_trace": [
+      "PPDBClus baseline and PPDB2.0 scoring: Cocos & Callison-Burch (2016) referenced in manuscript as prior automatic PPDB clustering baseline (Sec.2, Sec.3; Table 2).",
+      "AddCos context scoring used for C view and as lexsub baseline: Melamud et al. (2015) and Appendix A.3; AddCos implementation details and embedding training on Annotated Gigaword provided in paper appendices (Sec.3.1.1, A.3).",
+      "Multi-view NMF algorithmic backbone: Liu et al. (2013) multi-view NMF formulation adapted in Sec.3.1 and Appendix A.2 (objective and λi normalization discussed).",
+      "Substitutability metric: extended B-Cubed formalization and β=0.5 choice detailed in Sec.2 and Appendix A.1; CoInCo lexsub annotations used as gold standard (Sec.4.1).",
+      "TWSI and WordNet baselines and their behavior on nouns discussed in Sec.2.1 and Table 2 (WordNet+ and TWSI B-Cubed baseline values listed in manuscript)."
+    ],
+    "transparency_notes": [
+      "Manuscript provides useful implementation details (NMF objective, λi, AddCos formula and embedding hyperparameters, PPDB usage and cutoff rationale) and qualitative cluster examples. However, crucial quantitative artifacts are missing from the main text: (1) per-variant extended B-Cubed numeric table for all SubstClus variants and baselines with POS breakdowns and confidence intervals; (2) coverage statistics per SubstClus variant analogous to Table 2; (3) per-target GAP distributions and statistical tests; (4) WSD heuristic accuracy metrics; and (5) provenance artifacts (final SubstClus inventories, sampled AGiga sentences for XS, trained embeddings, multi-view NMF configs and seeds). Release of these artifacts and additional tables is recommended to enable verification and reproducibility."
+    ],
+    "editor_guidance": "If a revision is solicited, require the authors to (a) add explicit numeric tables of extended B-Cubed (β=0.5) for every inventory (all SubstClus variants and baselines) with per-POS breakdowns and bootstrap CIs; (b) supply coverage statistics per inventory (|T|, avg synonyms per target, avg senses per target, CoInCo overlap); (c) report per-target GAP distributions and paired statistical tests (e.g., bootstrap/Wilcoxon) comparing Unfiltered vs Best-Fit and vs Oracle; (d) compute Pearson/Spearman correlations (with CIs) linking substitutability to Oracle and Best-Fit GAP and analyze sensitivity to β; (e) include hyperparameter sensitivity/ablation for PPDB cutoff, XS sample size, λi, and k-selection approaches (Silhouette on C / multi-view / fixed k); (f) report Best-Fit WSD heuristic accuracy and, if feasible, demonstrate Best-Fit using a stronger WSD or partial-oracle to separate inventory utility from WSD limitations; and (g) release core artifacts (SubstClus inventories, sampled XS sentences, trained embeddings, NMF code/configs). Assess feasibility of these requested analyses when deciding whether to invite resubmission.",
+    "author_guidance": "To address reviewer concerns and substantiate claims, provide the following: 1) A table listing extended B-Cubed F0.5 (substitutability) for every inventory and SubstClus variant, per-POS splits, and 95% bootstrap CIs; 2) Coverage statistics for each inventory (|T|, avg synonyms/tgt, avg senses/tgt, avg CoInCo overlap) analogous to Table 2; 3) Per-target GAP distributions and paired significance tests comparing Unfiltered vs Best-Fit and Oracle, with reported p-values and CIs; 4) Correlation analyses (Pearson and Spearman) with scatterplots between B-Cubed and Oracle/Best-Fit GAP, and sensitivity analysis over β (e.g., 0.2, 0.5, 1.0); 5) Ablations/sensitivity sweeps for PPDB cutoff (e.g., 1.5/2.0/2.3/3.0), XS sentence counts (250/500/1000/2000), λi values, and alternate k-selection strategies (Silhouette on C, multi-view criteria); 6) WSD diagnostics: report Best-Fit heuristic accuracy (how often it matches oracle sense) and, if possible, results using a stronger WSD or partial-oracle disambiguation to disentangle inventory quality from WSD limits; 7) Per-view ablation table quantifying marginal contributions of C, P, W, T to B-Cubed and GAP; 8) Diagnostics for C and T views (e.g., correlation of AddCos with CoInCo annotator frequencies, sparsity/density of translation view) and example failure cases (esp. noun cases where TWSI wins); and 9) Release the SubstClus inventories, sampled AGiga sentences used for XS, trained embeddings, and code/configs (NMF seeds/settings, evaluation scripts) as supplementary material or a reproducibility package.",
+    "comments": "Summary: The manuscript describes SubstClus, a multi-view NMF pipeline that integrates a context-derived substitutability view (AddCos over sampled sentences) with PPDB paraphrase scores, shared translations, and WordNet affinities to produce substitutable paraphrase sense clusters from PPDB. Evaluation ties intrinsic substitutability (extended B-Cubed β=0.5) to extrinsic lexsub utility by filtering lexsub rankings (Syn.VSM, AddCos) and measuring GAP under Unfiltered / Oracle / Best-Fit conditions. Results and qualitative examples indicate promising Oracle gains and that multi-view variants can outperform automatic baselines.\nStrengths: The work aligns the clustering goal explicitly with substitutability, uses a sensible multi-view design, and demonstrates downstream utility via lexsub filtering; engineering choices support scalability and appendices add implementation detail.\nLimitations: (1) Missing per-variant numeric substitutability (extended B-Cubed) tables prevents direct verification of intrinsic claims; (2) GAP results lack variance estimates and statistical tests so robustness is unclear; (3) hyperparameter sensitivity (PPDB cutoff, XS sample size, λi, k-selection) is not studied and may materially affect outcomes; (4) Best-Fit conflates inventory quality with WSD heuristic performance—the heuristic’s accuracy is unreported. These limitations are concrete and tied to the manuscript’s reported experiments and claims.\nOpen Questions: (1) Please publish a full table of extended B-Cubed (β=0.5) per inventory (all SubstClus variants and baselines) with POS splits and CIs; (2) Provide coverage/overlap statistics per SubstClus variant analogous to Table 2; (3) Report per-target GAP distributions and paired statistical tests comparing Unfiltered vs Best-Fit and vs Oracle; (4) Quantify Best-Fit WSD accuracy and, if possible, report results when using a stronger WSD or a partial-oracle to separate inventory vs WSD effects.\nTransparency: The manuscript documents many implementation details (NMF objective, AddCos details, PPDB cutoff rationale), which aids reproducibility. However, core artifacts and quantitative tables are missing: per-variant B-Cubed numbers, coverage tables, hyperparameter sweeps, WSD accuracy, and the actual SubstClus inventories and sampled sentences. Release of these artifacts and inclusion of requested analyses are necessary for verification.",
+    "confidence_interval": {
+      "lower": 0.2,
+      "upper": 0.85,
+      "rationale": "Moderate epistemic confidence that the multi-view substitutability framing and pipeline produce meaningful improvements under the described experimental setup (supported by Oracle GAP gains and coherent design). Confidence is reduced by missing quantitative per-variant intrinsic metrics, lack of statistical testing, untested hyperparameter sensitivity, and unreported WSD accuracy; these gaps materially affect claims about effect size, robustness, and generality. The interval reflects that while the approach is promising, the empirical strength and reproducibility require the concrete analyses and artifact release requested above."
+    }
+  },
+  "audit": {
+    "corpus_contexts": {},
+    "prompt_execution_trace": [
+      {
+        "stage": "meta_classification",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.1,
+        "role": "paper_classifier",
+        "input_stages": [
+          "manuscript"
+        ],
+        "notes": [
+          "Infers paper type, epistemic stance, and contribution style before downstream prompting."
+        ]
+      },
+      {
+        "stage": "shared_analysis",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.1,
+        "role": "shared_claims_and_assumptions_extractor",
+        "input_stages": [
+          "meta_classification",
+          "manuscript"
+        ],
+        "notes": [
+          "Extracts shared claims and assumptions for downstream prompt chaining."
+        ]
+      },
+      {
+        "stage": "specialist_review",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.15,
+        "role": "structure_analyst",
+        "input_stages": [
+          "meta_classification",
+          "shared_analysis",
+          "external_q1q2_retrieval_context",
+          "review_guidelines_retrieval_context"
+        ],
+        "notes": [
+          "Variant: logical-coherence-first",
+          "Reviewer label: GPT",
+          "Shared extraction stage is injected to preserve cross-review coherence.",
+          "Literature query: Can multi-view sense clustering of paraphrases (including a substitutability view) produce high-coverage, substitutable sense inventories from PPDB, and can such inventories be used as filters to improve lexical substitution rankings from vector/embedding-based models? paper structure logical flow section consistency argument continuity",
+          "Guideline query: structure_analyst logical-coherence-first paper structure logical flow section consistency argument continuity",
+          "Retrieved evidence comes from a dual runtime path: curated Q1/Q2 literature plus reviewer-guideline corpora in Qdrant."
+        ]
+      },
+      {
+        "stage": "specialist_review",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.2,
+        "role": "methodology_auditor",
+        "input_stages": [
+          "meta_classification",
+          "shared_analysis",
+          "external_q1q2_retrieval_context",
+          "review_guidelines_retrieval_context"
+        ],
+        "notes": [
+          "Variant: reproducibility-and-validity-first",
+          "Reviewer label: GPT",
+          "Shared extraction stage is injected to preserve cross-review coherence.",
+          "Literature query: Can multi-view sense clustering of paraphrases (including a substitutability view) produce high-coverage, substitutable sense inventories from PPDB, and can such inventories be used as filters to improve lexical substitution rankings from vector/embedding-based models? assumptions model choices statistical validity reproducibility robustness evaluation",
+          "Guideline query: methodology_auditor reproducibility-and-validity-first assumptions model choices statistical validity reproducibility robustness evaluation",
+          "Retrieved evidence comes from a dual runtime path: curated Q1/Q2 literature plus reviewer-guideline corpora in Qdrant."
+        ]
+      },
+      {
+        "stage": "specialist_review",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.35,
+        "role": "novelty_assessor_incremental",
+        "input_stages": [
+          "meta_classification",
+          "shared_analysis",
+          "external_q1q2_retrieval_context",
+          "review_guidelines_retrieval_context"
+        ],
+        "notes": [
+          "Variant: incremental-contribution lens",
+          "Reviewer label: GPT",
+          "Shared extraction stage is injected to preserve cross-review coherence.",
+          "Literature query: Can multi-view sense clustering of paraphrases (including a substitutability view) produce high-coverage, substitutable sense inventories from PPDB, and can such inventories be used as filters to improve lexical substitution rankings from vector/embedding-based models? extends existing paradigms semantic overlap comparable works incremental contribution",
+          "Guideline query: novelty_assessor_incremental incremental-contribution lens extends existing paradigms semantic overlap comparable works incremental contribution",
+          "Retrieved evidence comes from a dual runtime path: curated Q1/Q2 literature plus reviewer-guideline corpora in Qdrant."
+        ]
+      },
+      {
+        "stage": "specialist_review",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.45,
+        "role": "novelty_assessor_disruptive",
+        "input_stages": [
+          "meta_classification",
+          "shared_analysis",
+          "external_q1q2_retrieval_context",
+          "review_guidelines_retrieval_context"
+        ],
+        "notes": [
+          "Variant: disruptive-thinking lens",
+          "Reviewer label: GPT",
+          "Shared extraction stage is injected to preserve cross-review coherence.",
+          "Literature query: Can multi-view sense clustering of paraphrases (including a substitutability view) produce high-coverage, substitutable sense inventories from PPDB, and can such inventories be used as filters to improve lexical substitution rankings from vector/embedding-based models? new conceptual frame divergent ideas sparse precedent creative contribution",
+          "Guideline query: novelty_assessor_disruptive disruptive-thinking lens new conceptual frame divergent ideas sparse precedent creative contribution",
+          "Retrieved evidence comes from a dual runtime path: curated Q1/Q2 literature plus reviewer-guideline corpora in Qdrant."
+        ]
+      },
+      {
+        "stage": "specialist_review",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.1,
+        "role": "claim_verifier",
+        "input_stages": [
+          "meta_classification",
+          "shared_analysis",
+          "external_q1q2_retrieval_context",
+          "review_guidelines_retrieval_context",
+          "specialist_review_digests"
+        ],
+        "notes": [
+          "Variant: evidence-and-uncertainty-first",
+          "Reviewer label: GPT",
+          "Shared extraction stage is injected to preserve cross-review coherence.",
+          "Literature query: Can multi-view sense clustering of paraphrases (including a substitutability view) produce high-coverage, substitutable sense inventories from PPDB, and can such inventories be used as filters to improve lexical substitution rankings from vector/embedding-based models? claim verification evidence support overstatement literature cross-check",
+          "Guideline query: claim_verifier evidence-and-uncertainty-first claim verification evidence support overstatement literature cross-check",
+          "Retrieved evidence comes from a dual runtime path: curated Q1/Q2 literature plus reviewer-guideline corpora in Qdrant."
+        ]
+      },
+      {
+        "stage": "meta_review",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.2,
+        "role": "pluralistic_meta_reviewer",
+        "input_stages": [
+          "meta_classification",
+          "shared_analysis",
+          "specialist_reviews"
+        ],
+        "notes": [
+          "Synthesizes agreement, contradiction, and uncertainty rather than collapsing to a single verdict."
+        ]
+      },
+      {
+        "stage": "human_facing_meta_review",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.15,
+        "role": "human_style_meta_reviewer",
+        "input_stages": [
+          "meta_classification",
+          "shared_analysis",
+          "specialist_reviews",
+          "meta_review"
+        ],
+        "notes": [
+          "Exports a final expert-facing analytical synthesis with no scores and explicit transparency notes."
+        ]
+      }
+    ]
+  }
+}

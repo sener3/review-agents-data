@@ -1,0 +1,2267 @@
+{
+  "paper_context": {
+    "paper_type": "empirical",
+    "epistemic_stance": "empirical",
+    "research_question": "Does adding a secondary unsupervised language-modeling objective (predicting surrounding words using the forward/backward halves of a bi-LSTM) during training improve performance of neural sequence labeling models across tasks (error detection, NER, chunking, POS) without extra data?",
+    "contribution_type": [
+      "algorithmic modification",
+      "empirical evaluation",
+      "engineering/practical improvement"
+    ],
+    "contribution_style": [
+      "single-method proposal",
+      "multi-dataset benchmark",
+      "ablation/control comparisons"
+    ],
+    "main_claims": [
+      "Introducing a language modeling auxiliary objective that predicts preceding and following words from the forward and backward LSTM hidden states respectively yields consistent performance improvements on sequence labeling tasks.",
+      "The proposed multitask objective improves results across eight datasets covering error detection, NER, chunking and POS-tagging, without requiring extra annotated or unannotated data.",
+      "The largest absolute gains are observed for error detection (sparse-label setting), where the method gives a substantial improvement (reported 3.9% absolute on FCE) and attains new state-of-the-art results for the evaluated setups.",
+      "Applying dropout to input embeddings plus the language modeling objective provides better generalisation than either modification alone.",
+      "The added language-modeling parameters increase training-time computation but do not affect test-time runtime, because the LM outputs are unused during inference."
+    ],
+    "expected_evaluation_dimensions": [
+      "Task-level performance (F0.5 for error detection, entity-level F1 for NER/chunking, accuracy for POS) on standard datasets",
+      "Statistical reliability: averaged runs across multiple random seeds and development-set based model selection",
+      "Ablation/control comparisons: baseline, baseline+dropout, baseline+dropout+LM objective",
+      "Generalisation: in-domain and out-of-domain evaluation (e.g., FCE -> CoNLL-14)",
+      "Computational cost: additional parameters and training-time overhead vs. no impact at inference",
+      "Sensitivity to hyperparameter γ controlling LM objective weight and to regularisation (dropout)"
+    ],
+    "confidence": "high"
+  },
+  "shared_analysis": {
+    "extracted_claims": [
+      {
+        "claim_id": "C1",
+        "claim_label": "LM auxiliary boosts sequence labeling",
+        "claim_text": "Introducing a language modeling auxiliary objective that predicts preceding and following words from the forward and backward LSTM hidden states respectively yields consistent performance improvements on sequence labeling tasks.",
+        "section_anchor": "Abstract; Sections 1,3,5-7,9",
+        "evidence": [
+          "Abstract: \"This language modeling objective provided consistent performance improvements on every benchmark, without requiring any additional annotated or unannotated data.\"",
+          "Section 3: formulation of LM objectives and combined loss (Equation 14).",
+          "Section 5 Table 1: +LMcost row shows higher F0.5 than Baseline/+dropout for error detection.",
+          "Section 6 Table 2: +LMcost row shows higher entity-level F1 across NER/chunking datasets.",
+          "Section 7 Table 3: +LMcost row shows small consistent accuracy gains for POS-tagging."
+        ],
+        "uncertainty_flags": [
+          "Magnitude of improvement varies by task and dataset (large for error detection, small for POS).",
+          "Tables present averaged results but raw run variability and statistical significance tests are not reported."
+        ]
+      },
+      {
+        "claim_id": "C2",
+        "claim_label": "No extra data required",
+        "claim_text": "The proposed multitask objective improves results across eight datasets covering error detection, NER, chunking and POS-tagging, without requiring extra annotated or unannotated data.",
+        "section_anchor": "Abstract; Sections 1,3,4,9",
+        "evidence": [
+          "Abstract: explicitly states no additional annotated or unannotated data required.",
+          "Section 3: LM objective defined using the same dataset tokens (predict wt+1/wt-1).",
+          "Section 4: evaluation on 8 datasets using their existing training splits and pretrained embeddings only."
+        ],
+        "uncertainty_flags": [
+          "Word embeddings are pretrained on external corpora (Google News, PubMed) — these are external unannotated resources; the claim refers only to LM objective requiring no additional data but embeddings still come from outside.",
+          "No explicit experiments showing effect of adding external unlabeled corpora to LM objective (left as future work)."
+        ]
+      },
+      {
+        "claim_id": "C3",
+        "claim_label": "Large gains for error detection",
+        "claim_text": "The largest absolute gains are observed for error detection (sparse-label setting), where the method gives a substantial improvement (reported 3.9% absolute on FCE) and attains new state-of-the-art results for the evaluated setups.",
+        "section_anchor": "Abstract; Sections 1,5,9; Table 1",
+        "evidence": [
+          "Section 5: Table 1 shows Baseline F0.5 on FCE TEST 48.78 vs +LMcost 53.17 (difference 4.39 absolute in table; text states 3.9%).",
+          "Section 5 text: \"The bottom row... gives a 3.9% absolute improvement on the FCE test set. These are also the new state-of-the-art results for error detection on both FCE and CoNLL-14 datasets.\""
+        ],
+        "uncertainty_flags": [
+          "Discrepancy between table difference (53.17 - 48.78 = 4.39) and textual 3.9% claim.",
+          "State-of-the-art claim depends on the specific baselines and evaluation setup; comparison details to prior SOTA not exhaustively listed.",
+          "No statistical significance testing reported for improvement on FCE/CoNLL-14."
+        ]
+      },
+      {
+        "claim_id": "C4",
+        "claim_label": "Dropout+LM > either alone",
+        "claim_text": "Applying dropout to input embeddings plus the language modeling objective provides better generalisation than either modification alone.",
+        "section_anchor": "Section 4; Sections 5-7 (results and discussion)",
+        "evidence": [
+          "Section 4: three configurations compared: baseline, baseline+dropout, baseline+dropout+LMcost.",
+          "Section 5: discussion that dropout decreases performance alone on error detection but improves in combination with LMcost.",
+          "Tables 1-3: +LMcost rows (which include dropout) outperform both Baseline and +dropout in reported metrics."
+        ],
+        "uncertainty_flags": [
+          "For error detection, +dropout alone decreased performance; benefit of combination may depend on dataset sparsity.",
+          "No experiments reported for LMcost without dropout (only combined with dropout in tables), so independent effect of LMcost without dropout is not fully shown across all tasks."
+        ]
+      },
+      {
+        "claim_id": "C5",
+        "claim_label": "LM params only affect training",
+        "claim_text": "The added language-modeling parameters increase training-time computation but do not affect test-time runtime, because the LM outputs are unused during inference.",
+        "section_anchor": "Section 3 (end paragraphs)",
+        "evidence": [
+          "Section 3: \"the computational complexity and resource requirements of this model during sequence labeling are equal to the baseline ... since the language modeling components are ignored during testing and these additional weight matrices are not used.\"",
+          "Section 3: description of four additional parameter matrices introduced for LM."
+        ],
+        "uncertainty_flags": [
+          "No empirical measurements of training-time overhead or memory consumption are provided.",
+          "No profiling presented to confirm negligible effect on inference when LM matrices are present in model object (even if unused)."
+        ]
+      },
+      {
+        "claim_id": "C6",
+        "claim_label": "γ = 0.1 suitable",
+        "claim_text": "Setting the LM-objective weight γ to 0.1 for all experiments yields good performance; static small γ performs comparably to decaying γ in development experiments.",
+        "section_anchor": "Section 4",
+        "evidence": [
+          "Section 4: \"Based on development experiments we set the value of γ ... to 0.1 for all experiments.\"",
+          "Section 4: \"we also performed experiments ... where γ was gradually decreased, but found that a small static value performed comparably well or even better.\""
+        ],
+        "uncertainty_flags": [
+          "No quantitative comparison tables or curves between different γ schedules are reported.",
+          "Optimal γ may be dataset/task dependent; only development experiments (not detailed) supported this choice."
+        ]
+      },
+      {
+        "claim_id": "C7",
+        "claim_label": "LM encourages general-purpose features",
+        "claim_text": "The language modeling objective incentivises the framework to learn general-purpose patterns of semantic and syntactic composition that are useful for sequence labeling.",
+        "section_anchor": "Abstract; Sections 1,3,9",
+        "evidence": [
+          "Abstract and Section 1: motivate LM to learn general language features because predicting words uses a larger and more varied set of options.",
+          "Section 3: architectural design chooses to predict next/previous words from single-direction LSTMs to encourage composition learning."
+        ],
+        "uncertainty_flags": [
+          "No direct analysis of learned representations (e.g., probing, visualization) is provided to substantiate 'general-purpose patterns'.",
+          "Improvements in downstream metrics are consistent with the hypothesis but not conclusive proof of the exact nature of learned features."
+        ]
+      }
+    ],
+    "identified_assumptions": [
+      {
+        "assumption_id": "A1",
+        "assumption_text": "Predicting next/previous word from a single-direction LSTM avoids trivial predictions that would occur if using concatenated bidirectional state.",
+        "assumption_type": "explicit",
+        "section_anchor": "Section 3 (paragraphs explaining architecture choice)",
+        "supporting_evidence": [
+          "Section 3: \"the model has access to the full context on each side of the target token, and predicting information that is already explicit in the input would not incentivise the model... We solve this by predicting the next word ... only based on the hidden representation −→ ht ...\""
+        ],
+        "risk_if_unmet": "If single-direction hidden states still leak sufficient information to make predictions trivial, the LM objective may not force learning of composition features and may provide limited benefit."
+      },
+      {
+        "assumption_id": "A2",
+        "assumption_text": "Language modeling objective produces useful gradients for sequence labeling even when using the same labeled dataset (no extra unlabeled text).",
+        "assumption_type": "implicit",
+        "section_anchor": "Sections 1,3,4",
+        "supporting_evidence": [
+          "Paper emphasizes no additional data used and reports improvements across tasks.",
+          "Section 3: LM loss defined over same sentences used for labeling."
+        ],
+        "risk_if_unmet": "If LM gradients are redundant or conflict with labeling gradients on small/specific datasets, multitask training could harm or not improve labeling performance."
+      },
+      {
+        "assumption_id": "A3",
+        "assumption_text": "Pretrained word embeddings used (Google News, PubMed) do not confound attribution of improvements to the LM auxiliary objective.",
+        "assumption_type": "implicit",
+        "section_anchor": "Section 4",
+        "supporting_evidence": [
+          "Section 4: embeddings initialised with pretrained vectors; same embeddings used across compared systems.",
+          "Comparisons are between baseline, +dropout, +dropout+LM, with embeddings constant."
+        ],
+        "risk_if_unmet": "If embeddings interact with LM objective differently than with baseline (e.g., LM fine-tunes embeddings), some observed gains might be due to embedding adaptation rather than LM-induced compositional features."
+      },
+      {
+        "assumption_id": "A4",
+        "assumption_text": "A single γ value (0.1) is appropriate across all datasets and tasks.",
+        "assumption_type": "operational",
+        "section_anchor": "Section 4",
+        "supporting_evidence": [
+          "Section 4: \"Based on development experiments we set ... γ to 0.1 for all experiments.\""
+        ],
+        "risk_if_unmet": "If optimal γ varies substantially by task or dataset, reported improvements may not reflect best-case performance or could mask cases where LM harms performance."
+      },
+      {
+        "assumption_id": "A5",
+        "assumption_text": "Averaging results over 10 random seeds and selecting models by development performance yields reliable estimates of generalisation.",
+        "assumption_type": "explicit",
+        "section_anchor": "Section 4 (training details)",
+        "supporting_evidence": [
+          "Section 4: \"each configuration was trained with 10 different random seeds and the averaged results are presented... Training was stopped when performance on the development set had not improved for 7 epochs. Performance on the development set was also used to select the best model...\""
+        ],
+        "risk_if_unmet": "If model selection or averaging procedures introduce bias (e.g., selection based on dev that correlates differently with test across systems), reported average gains may not generalise."
+      },
+      {
+        "assumption_id": "A6",
+        "assumption_text": "Ignoring the LM output layer at test time has no effect on downstream label prediction performance (i.e., LM parameters do not need to be run during inference).",
+        "assumption_type": "explicit",
+        "section_anchor": "Section 3 (end)",
+        "supporting_evidence": [
+          "Section 3: states LM components are ignored during testing and additional matrices are not used."
+        ],
+        "risk_if_unmet": "If label prediction implicitly depends on LM components at inference (e.g., due to shared parameters or required normalization), disabling LM parts could change behavior or require care in implementation."
+      },
+      {
+        "assumption_id": "A7",
+        "assumption_text": "Using softmax for LM outputs over full vocabulary is an adequate training signal despite computational cost; approximations (NCE/hierarchical softmax) would preserve benefits.",
+        "assumption_type": "implicit",
+        "section_anchor": "Section 3 (last paragraph)",
+        "supporting_evidence": [
+          "Section 3: \"While our implementation uses a basic softmax ... efficiency during training could be further improved by integrating NCE or hierarchical softmax.\""
+        ],
+        "risk_if_unmet": "If full-softmax training dynamics are important for gains, switching to approximate objectives could change effectiveness; training times may be prohibitive for larger vocabularies or corpora."
+      },
+      {
+        "assumption_id": "A8",
+        "assumption_text": "Label sparsity explains why LM objective helps most for error detection.",
+        "assumption_type": "explicit",
+        "section_anchor": "Section 5 (explanation list)",
+        "supporting_evidence": [
+          "Section 5: lists reasons including label sparsity (only 14% error tokens) and relation to LM."
+        ],
+        "risk_if_unmet": "If other factors (e.g., domain, dataset size, evaluation metric) drive the larger gains, the interpretation could mislead future work on when LM auxiliary is beneficial."
+      }
+    ],
+    "argument_focus": [
+      "Effect of LM auxiliary loss on representation learning in bidirectional LSTMs (Section 3)",
+      "Empirical gains across tasks/datasets and interaction with dropout (Sections 4-7)",
+      "Training vs inference cost trade-offs and implementation choices (Section 3)",
+      "Hyperparameter choices, especially γ and dropout probability (Section 4)"
+    ],
+    "contribution_targets": [
+      "Algorithmic modification: adding forward/backward LM objectives to halves of a bi-LSTM (Section 3)",
+      "Empirical evaluation: multi-dataset benchmark across 8 datasets covering error detection, NER, chunking, POS (Sections 4-7, Tables 1-3)",
+      "Ablation/control comparisons: baseline, baseline+dropout, baseline+dropout+LMcost (Section 4, Tables)"
+    ],
+    "evaluation_targets": [
+      "Verify reported metric improvements per dataset and configuration (Tables 1-3); check variance and statistical significance.",
+      "Reproduce experimental setup details: pretrained embeddings, LSTM sizes, dropout application, training/selection procedure (Section 4).",
+      "Measure training-time overhead and memory cost introduced by LM parameters; confirm no inference-time impact (Section 3).",
+      "Test sensitivity to γ and to using LMcost without dropout (Section 4 remarks).",
+      "Probe learned representations to validate claim of 'general-purpose semantic/syntactic features' (Sections 1,3,9).",
+      "Confirm state-of-the-art comparisons and exact baselines used for SOTA claims (Section 5)."
+    ],
+    "uncertainty_flags": [
+      "No statistical significance tests reported for improvements; effect sizes may be within run variability.",
+      "γ selection rationale is described but quantitative tuning results are not shown; generality of γ=0.1 is uncertain.",
+      "LM objective experiments are reported combined with dropout in tables; isolated effect of LM without dropout not consistently shown across tasks.",
+      "Pretrained embeddings are external resources that interact with training; claim of 'no extra unannotated data' is nuanced.",
+      "Training-time cost claims are qualitative; no wall-clock or memory profiling provided."
+    ],
+    "chaining_notes": [
+      "Downstream reviewers should (a) attempt to reproduce per-dataset results across multiple independent runs and report confidence intervals, (b) run ablations for LMcost without dropout and for varying γ schedules, (c) profile training/inference runtime and memory, and (d) analyze learned hidden representations (e.g., probing tasks) to test the asserted mechanism that LMaux induces general-purpose composition features.",
+      "Be explicit when comparing to prior SOTA: ensure identical data splits, embeddings, and evaluation scripts; where embeddings differ, run controlled variants to isolate effects."
+    ]
+  },
+  "specialist_reviews": [
+    {
+      "reviewer_id": "reviewer_1",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "reviewer_label": "GPT",
+      "cognitive_role": "structure_analyst",
+      "epistemic_variant": "logical-coherence-first",
+      "paper_type_assumed": "empirical",
+      "prior_stage_inputs": [
+        "SHARED_ANALYSIS: extracted_claims, identified_assumptions, uncertainty_flags, chaining_notes"
+      ],
+      "analytical_summary": "The paper proposes a multitask modification to bi-LSTM sequence labeling: train the forward LSTM to predict the next word and the backward LSTM to predict the previous word, adding an LM loss weighted by γ to the standard labeling loss. The architecture is evaluated across 8 datasets (error detection, NER, chunking, POS) and compared in an ablation-like setup: baseline, baseline+dropout, baseline+dropout+LMcost. Reported results show consistent improvements across datasets, largest on sparse-label error detection (FCE/CoNLL-14). The authors argue the LM objective drives learning of more general compositional features and claim no extra unlabeled/annotated data is required. Key operational choices include mapping single-direction LSTM outputs through small non-linear layers for LM, using full softmax LM loss (no sampling), γ fixed at 0.1, and averaging over 10 random seeds with early-stopping on dev. The reasoning chain links sparsity of labels and limited per-token supervisory signal -> LM objective provides richer supervision per token -> leads to learned features that transfer to labeling and thus improved metrics. Evidence is empirical (Tables, training curves). Missing or weak links include (a) limited direct probing of learned representations to validate mechanism, (b) absence of statistical significance analysis and full ablations (LM without dropout, varying γ per task), and (c) ambiguous phrasing around \"no extra data\" given use of pretrained embeddings. Overall the argument is coherent and mostly well-chained from motivation to empirical claim, but several inferential steps rely on plausibility and aggregate improvements rather than direct causal demonstration.",
+      "logical_argument_graph": [
+        "Node M0: Problem statement - sequence labeling often has sparse supervisory labels (Intro).",
+        "Node M1: Hypothesis - adding an auxiliary LM objective will force learning of richer compositional features helpful for labeling (Intro, Sec 3).",
+        "Edge M0->M1: Rationale: per-token LM uses all words as supervision while labels are sparse.",
+        "Node A1: Architectural design - predict next word from forward LSTM and previous word from backward LSTM to avoid trivial leakage (Sec 3).",
+        "Edge M1->A1: Design choice intended to ensure LM forces composition learning rather than copying.",
+        "Node A2: Training objective - combined loss E + γ(E_fwd + E_bwd) with γ=0.1 (Eq 14, Sec 4).",
+        "Edge A1->A2: Implementation operationalises hypothesis.",
+        "Node E1: Experimental protocol - datasets, pretrained embeddings, 3 system variants, 10 seeds, dev-based selection (Sec 4).",
+        "Edge A2->E1: Experiments evaluate whether combined loss improves tasks.",
+        "Node R1: Empirical results - consistent improvements across tasks; largest gains on error detection (Tables 1-3, Secs 5-7).",
+        "Edge E1->R1: Observations from experimental runs.",
+        "Node I1: Interpretation - LM objective yields general-purpose features and better generalisation, dropout interacts positively (Secs 5-7).",
+        "Edge R1->I1: Authors infer mechanism from consistent gains and training curves.",
+        "Node L1: Claims about costs - extra LM params increase training cost but are unused at inference (Sec 3).",
+        "Edge A2->L1: Architectural facts leading to runtime claim.",
+        "Break/Weak Link B1: Lack of direct evidence that LM features are 'general-purpose' (probe/visualisation missing).",
+        "Break/Weak Link B2: No significance testing; some effect sizes could be within variance. (Uncertainty flags).",
+        "Break/Weak Link B3: \"No extra data\" claim nuanced because pretrained embeddings were trained on external corpora.",
+        "Counterfactual C1: If single-direction states still reveal sufficient context (leakage), LM task may be trivial and not provide intended inductive bias.",
+        "Counterfactual C2: If γ is suboptimal per task, LM could harm specialization and reduce performance."
+      ],
+      "identified_claims": [
+        {
+          "claim_id": "C1",
+          "claim_label": "LM auxiliary boosts sequence labeling",
+          "claim_text": "Introducing a language modeling auxiliary objective that predicts preceding and following words from the forward and backward LSTM hidden states respectively yields consistent performance improvements on sequence labeling tasks.",
+          "section_anchor": "Abstract; Sections 1,3,5-7,9",
+          "evidence": [
+            "Abstract: statement of consistent improvements.",
+            "Sec 3: formalisation of LM objectives and combined loss (Eq 14).",
+            "Tables 1-3: +LMcost rows outperform Baseline/+dropout in reported metrics across tasks."
+          ],
+          "uncertainty_flags": [
+            "No reported statistical significance for improvements; aggregated averages over 10 seeds may hide overlap in distributions.",
+            "LMcost results are always reported combined with dropout in tables, so isolated LM-only effect is not shown consistently."
+          ]
+        },
+        {
+          "claim_id": "C2",
+          "claim_label": "No extra data required",
+          "claim_text": "The proposed multitask objective improves results across eight datasets covering error detection, NER, chunking and POS-tagging, without requiring extra annotated or unannotated data.",
+          "section_anchor": "Abstract; Sections 1,3,4,9",
+          "evidence": [
+            "Sec 3: LM objective defined over same dataset tokens (predict wt+1/wt-1).",
+            "Sec 4: evaluations use standard dataset splits and pretrained embeddings only; no extra unlabeled corpora used for LM loss."
+          ],
+          "uncertainty_flags": [
+            "Pretrained embeddings (Google News, PubMed) are external unannotated resources; they remain part of training inputs and may interact with LM objective.",
+            "No experiments showing incremental benefit of using additional unlabeled data for the LM objective."
+          ]
+        },
+        {
+          "claim_id": "C3",
+          "claim_label": "Large gains for error detection",
+          "claim_text": "The largest absolute gains are observed for error detection (sparse-label setting), where the method gives a substantial improvement (reported 3.9% absolute on FCE) and attains new state-of-the-art results for the evaluated setups.",
+          "section_anchor": "Abstract; Sections 1,5,9; Table 1",
+          "evidence": [
+            "Table 1: Baseline F0.5 48.78 vs +LMcost 53.17 on FCE test (difference shown).",
+            "Sec 5 text: reports 3.9% absolute improvement and SOTA claims."
+          ],
+          "uncertainty_flags": [
+            "Numerical discrepancy between table arithmetic (4.39 absolute) and textual 3.9% claim.",
+            "State-of-the-art claim depends on choice of previous baselines; exhaustive comparison not presented.",
+            "No significance testing for this pronounced gain."
+          ]
+        },
+        {
+          "claim_id": "C4",
+          "claim_label": "Dropout+LM > either alone",
+          "claim_text": "Applying dropout to input embeddings plus the language modeling objective provides better generalisation than either modification alone.",
+          "section_anchor": "Section 4; Sections 5-7 (results and discussion)",
+          "evidence": [
+            "Three experimental settings compared: baseline, baseline+dropout, baseline+dropout+LMcost (Sec 4).",
+            "Tables show +LMcost (which includes dropout) outperforming the other two configurations across datasets."
+          ],
+          "uncertainty_flags": [
+            "LMcost without dropout is not consistently reported across all tasks; thus the interaction is not fully disentangled.",
+            "On error detection, +dropout alone decreased performance, raising questions about dataset-specific interactions."
+          ]
+        },
+        {
+          "claim_id": "C5",
+          "claim_label": "LM params only affect training",
+          "claim_text": "The added language-modeling parameters increase training-time computation but do not affect test-time runtime, because the LM outputs are unused during inference.",
+          "section_anchor": "Section 3 (end paragraphs)",
+          "evidence": [
+            "Sec 3: statement that LM components are ignored during testing and extra weight matrices are not used.",
+            "Sec 3: description of 4 additional parameter matrices for LM."
+          ],
+          "uncertainty_flags": [
+            "No empirical profiling of training-time overhead or memory usage is provided.",
+            "Implementation details (e.g., whether unused LM matrices still loaded into model at inference) may affect practical inference footprint."
+          ]
+        },
+        {
+          "claim_id": "C6",
+          "claim_label": "γ = 0.1 suitable",
+          "claim_text": "Setting the LM-objective weight γ to 0.1 for all experiments yields good performance; static small γ performs comparably to decaying γ in development experiments.",
+          "section_anchor": "Section 4",
+          "evidence": [
+            "Sec 4: explicit statement of γ=0.1 chosen based on development experiments and static γ compared to decaying schedule."
+          ],
+          "uncertainty_flags": [
+            "No quantitative comparison results across γ values or schedules are reported.",
+            "Optimal γ may differ per task; universal γ might be suboptimal in some settings."
+          ]
+        },
+        {
+          "claim_id": "C7",
+          "claim_label": "LM encourages general-purpose features",
+          "claim_text": "The language modeling objective incentivises the framework to learn general-purpose patterns of semantic and syntactic composition that are useful for sequence labeling.",
+          "section_anchor": "Abstract; Sections 1,3,9",
+          "evidence": [
+            "Motivational text describing that predicting words forces the model to learn composition and semantics (Intro, Sec 3).",
+            "Empirical improvements across diverse tasks are consistent with the hypothesised mechanism."
+          ],
+          "uncertainty_flags": [
+            "No direct representational analysis (probing tasks, ablations on hidden layers) to validate that features are indeed more general-purpose.",
+            "Observed metric gains are consistent with but do not uniquely support this mechanism."
+          ]
+        }
+      ],
+      "strengths": [
+        {
+          "title": "Clear, testable hypothesis linking LM objective to richer features",
+          "description": "The paper provides a concrete architectural formulation (predict next/previous from single-direction LSTMs) and a combined loss that directly operationalises the hypothesis.",
+          "evidence": [
+            "Section 3: architectural diagrams and equations (8-14).",
+            "Figure 1: unfolded network structure showing LM and label outputs."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Comprehensive multi-dataset empirical evaluation",
+          "description": "The method is evaluated across error detection, NER, chunking and POS with consistent reporting and multiple datasets per task.",
+          "evidence": [
+            "Sections 5-7 and Tables 1-3 present results on 8 datasets.",
+            "Use of both in-domain and out-of-domain evaluation (FCE vs CoNLL-14)."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Controlled incremental comparisons",
+          "description": "Authors compare baseline, baseline+dropout, and baseline+dropout+LMcost allowing some isolation of LM effect in conjunction with dropout.",
+          "evidence": [
+            "Section 4 description of 3 configurations; Tables show incremental additions.",
+            "Training curves (described in Secs 5-7) illustrate dynamics during training."
+          ],
+          "confidence": "medium"
+        },
+        {
+          "title": "Reproducibility-oriented reporting",
+          "description": "Implementation details (architecture sizes, optimisers, embedding sources, seeds, early stopping) are provided and code is stated as released.",
+          "evidence": [
+            "Section 4: LSTM sizes, AdaDelta, batch size, 10 seeds, dropout prob, and link to code (anonymised)."
+          ],
+          "confidence": "medium"
+        }
+      ],
+      "concerns": [
+        {
+          "issue_code": "M1",
+          "title": "Incomplete ablation: LM effect without dropout",
+          "description": "Across tables LMcost is reported together with dropout; the isolated contribution of LM objective (without dropout) is not consistently shown, limiting causal attribution between LM and dropout interaction.",
+          "severity": "moderate",
+          "evidence": [
+            "Tables 1-3 show rows Baseline, +dropout, +LMcost where +LMcost includes dropout; Sec 4 states dropout was applied during development."
+          ],
+          "actionable_suggestion": "Add experiments reporting baseline+LMcost (no dropout) across tasks, and a full 2x2 table (dropout yes/no × LMcost yes/no) for at least representative datasets (error detection and one NER).",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M2",
+          "title": "No statistical testing or variance reporting",
+          "description": "Results are averaged over 10 seeds but no standard deviations, confidence intervals, or statistical significance tests are presented to judge reliability of improvements.",
+          "severity": "major",
+          "evidence": [
+            "Section 4: states averaging over 10 seeds; Tables present single averaged numbers without variance.",
+            "Uncertainty flags in shared analysis note absence of significance testing."
+          ],
+          "actionable_suggestion": "Report per-configuration standard deviations or bootstrapped confidence intervals, and run paired significance tests (e.g., bootstrap or t-test) for key comparisons, especially the large FCE gain.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M3",
+          "title": "Mechanism claim not directly evidenced",
+          "description": "Claim that LM objective produces 'general-purpose semantic/syntactic' features is plausible but not validated by representational analyses (probing classifiers, visualization, or transfer tests).",
+          "severity": "moderate",
+          "evidence": [
+            "Sections 1,3,9 motivate mechanism; no probing experiments or analyses provided.",
+            "Shared analysis notes lack of direct analysis of learned representations."
+          ],
+          "actionable_suggestion": "Include at least one probing study (e.g., POS/DEP/probing tasks), or qualitative examples showing LM-trained hidden states encoding relevant context, or experiment with freezing embeddings/LSTM to examine where gains occur.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M4",
+          "title": "Ambiguous 'no extra data' claim due to pretrained embeddings",
+          "description": "Paper claims no extra annotated/unannotated data used for LM objective, but uses pretrained embeddings derived from large unlabeled corpora which can interact with LM tuning and attribution of gains.",
+          "severity": "minor",
+          "evidence": [
+            "Sec 4: use of Google News and PubMed embeddings.",
+            "Shared analysis flags nuance in 'no extra data' claim."
+          ],
+          "actionable_suggestion": "Clarify wording: specify that LM objective uses only task data but models are initialised with external embeddings; optionally include experiments with random initialised embeddings to show robustness.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M5",
+          "title": "No runtime/memory profiling for training overhead claim",
+          "description": "Authors state LM matrices increase training-time computation but not inference cost; however no empirical training-time or memory numbers are provided to quantify overhead.",
+          "severity": "minor",
+          "evidence": [
+            "Sec 3: qualitative statement about training vs test complexity; no wall-clock or parameter counts reported."
+          ],
+          "actionable_suggestion": "Report parameter counts, relative training epoch times, and peak memory usage for baseline vs LMcost variants, to allow practitioners to assess trade-offs.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M6",
+          "title": "Gamma (γ) tuning rationale underreported",
+          "description": "Choice of γ=0.1 asserted based on development experiments, but no quantitative tuning results or sensitivity analysis across tasks is shown.",
+          "severity": "moderate",
+          "evidence": [
+            "Sec 4: statement that static γ=0.1 performed comparably to decaying schedules; no tables/plots provided."
+          ],
+          "actionable_suggestion": "Add an appendix table or figure showing results for multiple γ values and at least one decaying schedule across representative datasets.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "medium"
+        }
+      ],
+      "comparable_works": [
+        {
+          "citation_label": "Cheng et al. 2015",
+          "relevance": "Predicting next word auxiliary task in RNNs for name/OOV detection.",
+          "similarity_or_difference": "Similar in using next-word prediction as auxiliary signal; differs because current paper adapts LM objective to bidirectional LSTM by predicting next/previous from single-direction halves and applies across many sequence labeling tasks.",
+          "source_trace": "Section 8 mentions Cheng et al. (2015)."
+        },
+        {
+          "citation_label": "Plank et al. 2016 (cited)",
+          "relevance": "Multitask auxiliary (predict word frequency) for POS improvements.",
+          "similarity_or_difference": "Related multi-task idea; current paper uses full LM objective which is more general-purpose than frequency prediction and is applied across tasks beyond POS.",
+          "source_trace": "Section 8 discusses Plank et al. (2016)."
+        },
+        {
+          "citation_label": "Collobert & Weston 2008",
+          "relevance": "Classic multitask/weight-sharing framework for NLP.",
+          "similarity_or_difference": "Conceptual antecedent (multitask via shared layers) but the present work implements a specific LM auxiliary on bi-LSTM halves.",
+          "source_trace": "Section 8 references Collobert and Weston (2008)."
+        },
+        {
+          "citation_label": "Lample et al. 2016; Huang et al. 2015",
+          "relevance": "Strong contemporary sequence labeling architectures used as baselines/points of comparison.",
+          "similarity_or_difference": "Provide comparative performance context; differences in embedding choices and architecture variants likely explain gaps in absolute performance.",
+          "source_trace": "Secs 2,6 refer to these works."
+        }
+      ],
+      "uncertainty_flags": [
+        "No statistical significance testing or per-run variance reported; effect sizes could overlap with baseline variability.",
+        "LM-only (without dropout) effect not consistently isolated; interaction with dropout is under-specified.",
+        "Use of pretrained external embeddings complicates the 'no extra data' claim.",
+        "No direct representational analyses to support the claimed mechanism that LM yields general semantic/syntactic features.",
+        "Training-time and memory overheads of LM components are asserted qualitatively but not measured."
+      ],
+      "alternative_interpretations": [
+        "Improvements could partly stem from better tuning introduced during implementation (dropout placement, LSTM sizes) rather than solely from LM objective.",
+        "LM objective may primarily act as a form of regularisation (or as a stronger gradient signal on embeddings) rather than teaching distinct compositional features.",
+        "Pretrained embeddings may interact with LM objective to produce adaptation benefits; part of the gain might be due to further embedding fine-tuning under an LM objective."
+      ],
+      "transparency_notes": [
+        "Authors report many reproducibility details (hyperparameters, seeds, code release), which is commendable; adding exact training times, parameter counts, and logs of γ tuning would increase transparency.",
+        "State-of-the-art claims should explicitly list the comparative works/conditions (same splits, embeddings) used to validate SOTA statement."
+      ],
+      "creativity_safeguard": {
+        "lacks_close_analogs": false,
+        "treat_as_innovation_signal": false,
+        "novelty_not_validity_note": "The idea sits within existing multi-task/auxiliary-loss literature (next-word prediction and other auxiliaries). Demonstrated cross-task empirical gains are novel in scale and application, but novelty alone does not prove causal mechanism or broad generality.",
+        "counterfactual_conditions_for_success": [
+          "If single-direction LSTM states do not leak future/past token identity, then LM objective will force learning of composition features and improve labeling.",
+          "If γ is appropriately set per task (or dynamically annealed), LM objective provides auxiliary gradients during early training without preventing later specialization.",
+          "If pretrained embeddings are not crucial (i.e., effect persists with random init), then LM auxiliary has intrinsic benefit independent of embedding pretraining."
+        ]
+      },
+      "novelty_lenses": [
+        {
+          "lens": "incremental-methodological",
+          "verdict": "Moderately novel incremental improvement",
+          "rationale": "Uses an established idea (auxiliary LM loss) but adapts it carefully for bidirectional LSTMs by predicting next/prev from single-direction halves and demonstrates consistent multi-task empirical gains.",
+          "evidence": [
+            "Design choice in Sec 3 explicitly to avoid trivial leakage by using single-direction states.",
+            "Empirical tables showing consistent improvements across 8 datasets."
+          ],
+          "uncertainty_flags": [
+            "Degree of novelty depends on how distinct this per-half LM set-up is from prior auxiliary LM approaches; prior work (Cheng et al.) uses LM auxiliary but not in the same bi-LSTM halfwise manner."
+          ]
+        },
+        {
+          "lens": "empirical-impact",
+          "verdict": "Potentially high practical impact if robust",
+          "rationale": "Consistent improvements across diverse, standard datasets suggest practitioners could adopt LM auxiliary cheaply (no extra data) to boost performance, especially on sparse-label tasks like error detection.",
+          "evidence": [
+            "Substantial FCE gain in Table 1; consistent but smaller gains on NER/POS/chunking (Tables 2-3)."
+          ],
+          "uncertainty_flags": [
+            "Robustness needs confirmation via statistical tests, isolated ablations, and runtime cost reporting."
+          ]
+        }
+      ],
+      "confidence_interval": {
+        "lower": 0.25,
+        "upper": 0.9,
+        "rationale": "I have moderate-to-high confidence (≈0.6 median) in the factual reporting and internal coherence of the paper given detailed method and multi-dataset results, but lower confidence about causal mechanism claims and generalisability until additional ablations, variance reporting, and representational analyses are provided."
+      }
+    },
+    {
+      "reviewer_id": "reviewer_2",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "reviewer_label": "GPT",
+      "cognitive_role": "methodology_auditor",
+      "epistemic_variant": "reproducibility-and-validity-first",
+      "paper_type_assumed": "empirical",
+      "prior_stage_inputs": [
+        "SHARED_ANALYSIS"
+      ],
+      "analytical_summary": "The paper proposes adding a secondary language-modeling (LM) objective to a bidirectional LSTM sequence-labeler by training the forward LSTM to predict the next word and the backward LSTM to predict the previous word. The LM losses are combined with the primary labeling loss via a scalar γ (set to 0.1). Experiments compare baseline, baseline+input-embedding-dropout, and baseline+dropout+LMcost across 8 datasets (error detection, NER, chunking, POS). Reported results show consistent, often small, improvements across tasks, with the largest absolute gains on error detection. Key operational claims include no extra data required (LM uses the same training sentences), LM-only parameters are unused at test time, and γ=0.1 is adequate for all tasks. The paper provides architecture equations, training details (10 seeds, early stopping, AdaDelta, LSTM sizes), and public code. Missing or weak evidence areas include: statistical tests/variance reporting beyond averages, ablation of LMcost without dropout across all tasks, quantitative sensitivity analysis for γ, runtime/memory profiling for training overhead, and direct analyses validating the asserted representational mechanism (e.g., probing). Several assumptions (e.g., single-direction prediction prevents trivial learnable shortcuts; pretrained embeddings do not confound attribution) are plausible but not empirically examined in the manuscript. Reproducibility is facilitated by code availability and detailed hyperparameters, but important knobs (γ sweeps, training-time cost measurements, LM softmax vocabulary size and handling) are underreported.",
+      "logical_argument_graph": [
+        "A: Sequence labeling datasets have many majority-label tokens producing weak supervision.",
+        "B: Language modeling is an abundant supervisory signal that encourages learning richer composition features.",
+        "C: Training forward/backward LSTM halves to predict next/previous words forces those halves to learn composition without access to future/past tokens respectively.",
+        "D: Combined loss E + γ(E_forward + E_backward) yields gradients that shape shared LSTM parameters to support both LM and labeling.",
+        "E: With γ=0.1 and embedding dropout, training leads to better representations and thus improved labeling metrics across tasks.",
+        "F: LM parameters are only used during training and can be ignored at test time, so inference cost is unchanged.",
+        "G: Empirical evidence: averaged results across 10 seeds show improvements across 8 datasets, largest for sparse-label error detection."
+      ],
+      "identified_claims": [
+        {
+          "claim_id": "C1",
+          "claim_label": "LM auxiliary boosts sequence labeling",
+          "claim_text": "Introducing a language modeling auxiliary objective that predicts preceding and following words from the forward and backward LSTM hidden states respectively yields consistent performance improvements on sequence labeling tasks.",
+          "section_anchor": "Abstract; Sections 1,3,5-7,9",
+          "evidence": [
+            "Section 3: formulation and combined loss (Eq. 14).",
+            "Tables 1-3: reported averaged metrics show improvements for +LMcost vs Baseline/+dropout across tasks.",
+            "Figures 2-4: training curves showing improved/dev-sustained performance with LM objective."
+          ],
+          "uncertainty_flags": [
+            "Only averaged results presented; no confidence intervals or significance tests provided.",
+            "LMcost is reported always in combination with dropout in tables; isolated effect of LMcost without dropout is not consistently shown."
+          ]
+        },
+        {
+          "claim_id": "C2",
+          "claim_label": "No extra data required",
+          "claim_text": "The proposed multitask objective improves results across eight datasets covering error detection, NER, chunking and POS-tagging, without requiring extra annotated or unannotated data.",
+          "section_anchor": "Abstract; Sections 1,3,4,9",
+          "evidence": [
+            "Section 3: LM objective defined to predict surrounding words within the same labeled sentences.",
+            "Section 4 & abstract: explicit statements that no additional annotated/unannotated data are used."
+          ],
+          "uncertainty_flags": [
+            "Pretrained word embeddings (Google News, PubMed) are external unannotated resources; interaction with LM objective (fine-tuning) could confound attribution.",
+            "No experiments show what happens if extra unlabeled data are used for the LM objective; claim is limited to not requiring them but external resources are still part of setup."
+          ]
+        },
+        {
+          "claim_id": "C3",
+          "claim_label": "Large gains for error detection",
+          "claim_text": "The largest absolute gains are observed for error detection (sparse-label setting), where the method gives a substantial improvement (reported 3.9% absolute on FCE) and attains new state-of-the-art results for the evaluated setups.",
+          "section_anchor": "Section 5; Table 1; Abstract",
+          "evidence": [
+            "Table 1: FCE TEST Baseline F0.5 48.78 vs +LMcost 53.17 (table difference 4.39 absolute).",
+            "Section 5 text: claims 3.9% absolute improvement and SOTA on FCE/CoNLL-14."
+          ],
+          "uncertainty_flags": [
+            "Numeric discrepancy between table difference (4.39) and text (3.9%).",
+            "State-of-the-art claim lacks exhaustive comparison (exact baselines, identical preprocessing/evaluation scripts not fully enumerated).",
+            "No significance testing reported; effect could be within variability if variation is large."
+          ]
+        },
+        {
+          "claim_id": "C4",
+          "claim_label": "Dropout+LM better than either alone",
+          "claim_text": "Applying dropout to input embeddings plus the language modeling objective provides better generalisation than either modification alone.",
+          "section_anchor": "Section 4; Sections 5-7; Tables 1-3",
+          "evidence": [
+            "Section 4: experimental configurations include Baseline, +dropout, +dropout+LMcost.",
+            "Tables 1-3: +LMcost (with dropout) outperforms both Baseline and +dropout in reported metrics across datasets."
+          ],
+          "uncertainty_flags": [
+            "LMcost results are not presented without dropout across all tasks; cannot conclude additive or synergistic effects universally.",
+            "For error detection, +dropout alone decreased performance, complicating interpretation of combination effects."
+          ]
+        },
+        {
+          "claim_id": "C5",
+          "claim_label": "LM parameters only affect training",
+          "claim_text": "The added language-modeling parameters increase training-time computation but do not affect test-time runtime, because the LM outputs are unused during inference.",
+          "section_anchor": "Section 3 (end)",
+          "evidence": [
+            "Section 3: describes four additional parameter matrices and states LM components are ignored during testing."
+          ],
+          "uncertainty_flags": [
+            "No empirical measurements of training-time overhead, memory use, or explicit demonstration that saved model objects exclude LM matrices at inference.",
+            "Practical frameworks may retain parameters in model file even if unused; runtime/memory claims are qualitative."
+          ]
+        },
+        {
+          "claim_id": "C6",
+          "claim_label": "γ = 0.1 suitable",
+          "claim_text": "Setting the LM-objective weight γ to 0.1 for all experiments yields good performance; static small γ performs comparably to decaying γ in development experiments.",
+          "section_anchor": "Section 4",
+          "evidence": [
+            "Section 4: authors set γ=0.1 based on development experiments and note experiments with decaying γ performed comparably or worse."
+          ],
+          "uncertainty_flags": [
+            "No quantitative results of γ sweeps or decaying schedules provided.",
+            "Optimal γ may differ by task/dataset; universality of 0.1 not demonstrated."
+          ]
+        },
+        {
+          "claim_id": "C7",
+          "claim_label": "LM encourages general-purpose features",
+          "claim_text": "The language modeling objective incentivises the framework to learn general-purpose patterns of semantic and syntactic composition that are useful for sequence labeling.",
+          "section_anchor": "Abstract; Sections 1,3,9",
+          "evidence": [
+            "Motivational text and design choice (single-direction prediction) that LM encourages learning composition.",
+            "Observed downstream metric improvements used as evidence."
+          ],
+          "uncertainty_flags": [
+            "No representation analyses (probing tasks, t-SNE, diagnostic classifiers) presented to directly show learned features are more general-purpose.",
+            "Alternative mechanisms (regularisation, embedding fine-tuning) could explain improvements."
+          ]
+        }
+      ],
+      "strengths": [
+        {
+          "title": "Clear, simple architectural modification",
+          "description": "The LM auxiliary objective is a minimal, well-specified change to standard bidirectional LSTM taggers with explicit equations and implementation notes.",
+          "evidence": [
+            "Section 3 equations (8)-(14) and Figure 1 describe the exact architecture and loss.",
+            "Section 4 gives detailed hyperparameters and code is made publicly available."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Broad empirical coverage",
+          "description": "Evaluation spans multiple tasks and datasets (error detection, NER, chunking, POS), allowing cross-task assessment of the method's generality.",
+          "evidence": [
+            "Sections 5-7 and Tables 1-3 report results on 8 datasets across different domains.",
+            "In-domain and out-of-domain (FCE -> CoNLL-14) evaluations included."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Controlled baseline comparisons and repeated runs",
+          "description": "Paper compares baseline, baseline+dropout, and baseline+dropout+LMcost and reports averaged results over 10 random seeds, improving reliability vs single-run reporting.",
+          "evidence": [
+            "Section 4: description of three configurations and statement that each configuration trained with 10 seeds and averaged.",
+            "Tables present consistent incremental improvement patterns."
+          ],
+          "confidence": "medium"
+        },
+        {
+          "title": "Practical consideration for inference cost",
+          "description": "Design ensures LM components are unused at test time, preserving inference-time complexity comparable to baseline.",
+          "evidence": [
+            "Section 3 explicitly notes LM matrices are ignored during testing and only used during training."
+          ],
+          "confidence": "medium"
+        }
+      ],
+      "concerns": [
+        {
+          "issue_code": "M1",
+          "title": "Missing statistical significance and variance information",
+          "description": "The paper reports averaged metrics across 10 seeds but does not present standard deviations, confidence intervals, or statistical tests to show whether reported improvements are robust beyond run variability.",
+          "severity": "major",
+          "evidence": [
+            "Tables 1-3 show only point estimates (averaged results) with no variance or p-values.",
+            "Shared analysis uncertainty flags explicitly note lack of statistical testing."
+          ],
+          "actionable_suggestion": "Report standard deviations or 95% confidence intervals across seeds for every reported metric, and perform appropriate paired significance tests (e.g., bootstrap or permutation) comparing Baseline+dropout vs +LMcost.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M2",
+          "title": "Incomplete ablation: LMcost without dropout",
+          "description": "Tables present +LMcost always paired with dropout; the isolated contribution of LMcost (without dropout) is not consistently evaluated across tasks, making it unclear whether benefits require dropout.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 4 notes three configurations but the +LMcost rows are described as \"language modeling objective when added on top of the baseline model, along with dropout on word embeddings.\"",
+            "Discussion mentions dropout decreased error detection performance alone but improved when combined with LMcost; no systematic LM-only rows shown."
+          ],
+          "actionable_suggestion": "Add ablation rows for LMcost alone (no dropout) across all datasets, and possibly LMcost with different dropout rates, to disentangle interactions.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M3",
+          "title": "Sensitivity analysis for γ and LM training details lacking",
+          "description": "Choice of γ=0.1 is asserted based on development experiments but quantitative comparisons for different γ values or schedules are not provided; this weakens claims of generality.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 4: states γ set to 0.1 and decaying γ was tested but that results are not shown.",
+            "Shared analysis notes absence of γ sweep data."
+          ],
+          "actionable_suggestion": "Include a γ sensitivity study (e.g., {0.01,0.05,0.1,0.5,1.0}) and at least one decaying schedule plot for representative datasets; report downstream metrics and training dynamics.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M4",
+          "title": "Lack of runtime and memory profiling",
+          "description": "The paper claims no inference-time overhead and increased training-time cost but provides no empirical measurements of training time, wall-clock, or peak memory—important for practical adoption.",
+          "severity": "minor",
+          "evidence": [
+            "Section 3 makes qualitative statements about training overhead and possible NCE/hierarchical softmax but contains no quantitative profiling.",
+            "Shared analysis flagged absence of runtime/memory measurements."
+          ],
+          "actionable_suggestion": "Report training epoch time, total training hours, GPU/CPU memory usage for baseline and LM-augmented models on a representative dataset; if softmax vocabulary size causes slowdowns, report strategies used.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M5",
+          "title": "Attribution confounded by pretrained embeddings and potential embedding fine-tuning",
+          "description": "Pretrained embeddings from large corpora are used and likely fine-tuned; it's unclear to what extent LM auxiliary fine-tunes embeddings differently from baseline, possibly driving some gains.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 4: embeddings initialised with Google News or PubMed vectors and same across systems, but fine-tuning regime and its interaction with LMcost not analyzed.",
+            "Shared analysis highlighted this confound under identified assumptions A3."
+          ],
+          "actionable_suggestion": "Run controlled experiments: (a) freeze pretrained embeddings vs allow fine-tuning, and (b) compare LMcost effect in both regimes, to isolate whether gains come from embedding adaptation or higher-level composition.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M6",
+          "title": "Mechanistic claim about 'general-purpose features' not validated",
+          "description": "Authors posit LM objective leads to richer semantic/syntactic composition features, but no representation analyses (probing classifiers, nearest-neighbor, visualization) are presented to support this mechanism.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 1/3/9 motivate LM encodes composition; no probing experiments provided.",
+            "Shared analysis notes absence of direct representation evaluation."
+          ],
+          "actionable_suggestion": "Include at least one representation analysis: e.g., probe hidden states for POS/NER/constituency signals, or measure changes in nearest-neighbor word/phrase similarities between Baseline and +LM models.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M7",
+          "title": "SOTA claims insufficiently substantiated",
+          "description": "Statements about achieving new state-of-the-art on FCE and CoNLL-14 are not accompanied by detailed comparisons to all prior relevant works with the same data splits and evaluation scripts; numeric inconsistencies exist.",
+          "severity": "minor",
+          "evidence": [
+            "Section 5 claims SOTA but provides only limited references and not a table comparing prior methods on identical setups.",
+            "Discrepancy between table difference (4.39) and textual 3.9% on FCE."
+          ],
+          "actionable_suggestion": "Clarify SOTA comparisons by listing prior top results, ensuring identical preprocessing/evaluation and explicitly correcting the numeric discrepancy; add footnote about exact metric calculation used.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M8",
+          "title": "Potential leakage / trivial prediction risk not empirically checked",
+          "description": "The key architectural assumption is that predicting next/previous word from single-direction hidden states prevents trivial solutions, but no experiments probe whether the LM task is indeed nontrivial (e.g., very high train-time LM accuracy indicating shortcutting).",
+          "severity": "moderate",
+          "evidence": [
+            "Section 3 motivates single-direction prediction to avoid trivial use of full context; no LM perplexity/accuracy numbers reported.",
+            "Assumption A1 in shared analysis raises this risk."
+          ],
+          "actionable_suggestion": "Report LM training metrics (perplexity or accuracy over vocabulary) and analyze whether the LM objective drives learning of nontrivial composition (e.g., compare LM loss on train vs validation and examine examples).",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "medium"
+        }
+      ],
+      "comparable_works": [
+        {
+          "citation_label": "Cheng et al., 2015",
+          "relevance": "Describes predicting next word as auxiliary task in RNNs for OOV detection; similar in spirit to auxiliary LM but uses unidirectional RNN and different application.",
+          "similarity_or_difference": "Similarity: auxiliary next-word prediction. Difference: not integrated into bidirectional LSTM sequence-labelers and focused on OOV detection.",
+          "source_trace": "Section 8 references Cheng et al. (2015)"
+        },
+        {
+          "citation_label": "Plank et al., 2016 (cited)",
+          "relevance": "Related multi-task approach predicting word frequency with POS-tagging; demonstrates auxiliary supervision benefits.",
+          "similarity_or_difference": "Similarity: auxiliary token-level prediction to aid tagging. Difference: auxiliary signal (frequency) is different from full LM; authors claim LM is more general.",
+          "source_trace": "Section 8 references Plank et al. (2016)"
+        },
+        {
+          "citation_label": "Collobert & Weston, 2008 (cited)",
+          "relevance": "General multi-task learning with shared weights for NLP tasks; conceptual precedent for benefit of shared representations.",
+          "similarity_or_difference": "Similarity: multi-task learning paradigm. Difference: older shallow architectures, not specifically LM auxiliary on bi-LSTMs.",
+          "source_trace": "Section 8 references Collobert and Weston (2008)"
+        },
+        {
+          "citation_label": "Lample et al., 2016 (cited)",
+          "relevance": "State-of-the-art sequence labeling architectures (bi-LSTM-CRF) used as comparison for NER.",
+          "similarity_or_difference": "Similarity: bidirectional LSTM + CRF; Difference: uses task-specific engineering and specialized embeddings; reported higher CoNLL-03 score than current paper.",
+          "source_trace": "Section 6 references Lample et al. (2016)"
+        }
+      ],
+      "uncertainty_flags": [
+        "Averaged metrics without variance or significance tests leaves uncertainty about robustness of reported gains.",
+        "γ universality claim is supported by undeclared development tests but lacks quantitative evidence; may be dataset-dependent.",
+        "LMcost reported primarily with dropout; individual and interactive effects are not fully disentangled.",
+        "Pretrained embeddings are external resources; their fine-tuning may mediate observed improvements.",
+        "Training-time overhead and feasibility for larger vocabularies/corpora (softmax cost) not measured."
+      ],
+      "alternative_interpretations": [
+        "Gains arise primarily from embedding fine-tuning driven by the additional LM gradients rather than higher-level composition learning.",
+        "LM objective acts mainly as a regulariser that prevents overfitting (similar to dropout), rather than producing qualitatively different representations.",
+        "Improvements on sparse-label tasks (error detection) are due to increased effective signal density (LM provides supervision at every token) rather than better 'semantic composition' per se.",
+        "Reported SOTA improvement may stem partly from implementation/training details (e.g., embedding dropout, batch size, early stopping) rather than LM auxiliary alone."
+      ],
+      "transparency_notes": [
+        "Code is publicly available (anonymised link removed) which aids reproducibility but the repository should include scripts to reproduce reported averaged runs, random seeds, and exact evaluation scripts.",
+        "The paper reports most hyperparameters (LSTM sizes, batch size, optimizer) and training procedures but omits γ-sweep data, LM softmax vocabulary handling details (full vocab size, OOV handling), and LM training metrics.",
+        "Numeric discrepancy between Table 1 difference and textual description (4.39 vs 3.9) should be corrected and justified."
+      ],
+      "creativity_safeguard": {
+        "lacks_close_analogs": false,
+        "treat_as_innovation_signal": true,
+        "novelty_not_validity_note": "Although auxiliary LM tasks have precedents (e.g., Cheng et al., Plank et al.), integrating directional LM losses into halves of a bi-LSTM for sequence labeling and showing broad empirical evaluation across tasks is a meaningful incremental innovation. However, novelty does not guarantee validity; empirical claims must be supported by rigorous ablations, sensitivity analyses, and statistical reporting.",
+        "counterfactual_conditions_for_success": [
+          "If LM gradients consistently improve representation quality (validated by probing) across a range of γ and independent of embedding fine-tuning, the approach is valid and broadly useful.",
+          "If LM auxiliary simply regularises training, similar gains could be achieved with other token-level auxiliary tasks; then LM may not be uniquely superior.",
+          "If computational cost of full-softmax LM scales poorly on larger corpora/vocabularies and approximations change training dynamics, success may be limited to small/medium vocabularies or require alternative objective approximations."
+        ]
+      },
+      "novelty_lenses": [
+        {
+          "lens": "Incremental-methodological",
+          "verdict": "Useful incremental contribution",
+          "rationale": "Adds a straightforward, well-specified auxiliary objective to existing bi-LSTM-CRF frameworks and demonstrates consistent empirical gains across multiple datasets.",
+          "evidence": [
+            "Section 3 architectural specification and Equations 8-14.",
+            "Consistent improvements in Tables 1-3 across different tasks."
+          ],
+          "uncertainty_flags": [
+            "Effect sizes small in some tasks and lacking statistical tests; interactions with dropout and embeddings need disambiguation."
+          ]
+        },
+        {
+          "lens": "Practical/engineering",
+          "verdict": "Practically valuable if overheads are acceptable",
+          "rationale": "Method requires only code changes at training time and claims no inference cost, which is attractive for deployment if training cost is manageable.",
+          "evidence": [
+            "Section 3 states LM matrices are unused at test time.",
+            "Code availability supports practical uptake."
+          ],
+          "uncertainty_flags": [
+            "No empirical training-time/memory profiling; full-softmax LM could make training costly at scale."
+          ]
+        },
+        {
+          "lens": "Mechanistic/representational",
+          "verdict": "Hypothesis plausible but under-validated",
+          "rationale": "Claim that LMaux induces general-purpose composition features is consistent with intuition but not directly demonstrated by representation analyses.",
+          "evidence": [
+            "Observed downstream metric improvements.",
+            "Architectural choice to restrict prediction to single-direction hidden states."
+          ],
+          "uncertainty_flags": [
+            "No probing/analysis results; alternative mechanisms (embedding adaptation, regularisation) could explain improvements."
+          ]
+        }
+      ],
+      "confidence_interval": {
+        "lower": 0.6,
+        "upper": 0.9,
+        "rationale": "I am moderately to highly confident in the methodological observations (missing statistical reporting, need for additional ablations, and unclear γ sensitivity). There is solid evidence for consistent gains in averaged metrics, but lack of variance/statistics and missing ablations reduce confidence that all claimed effects (magnitude, universality, mechanism) will reproduce exactly."
+      }
+    },
+    {
+      "reviewer_id": "reviewer_3",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "reviewer_label": "GPT",
+      "cognitive_role": "novelty_assessor_incremental",
+      "epistemic_variant": "incremental-contribution lens",
+      "paper_type_assumed": "empirical",
+      "prior_stage_inputs": [
+        "Extracted claims C1..C7 from shared_analysis",
+        "Assumptions A1..A8 from shared_analysis",
+        "Evaluation design: 8 datasets, 3 system variants, 10 random seeds, γ=0.1",
+        "Main contributions: LM auxiliary to forward/backward halves of bi-LSTM; empirical gains across tasks"
+      ],
+      "analytical_summary": "The paper proposes augmenting a standard bidirectional LSTM sequence labeling model with a secondary unsupervised language modeling (LM) objective: predict the next token from the forward LSTM hidden state and the previous token from the backward LSTM hidden state. This design is intended to avoid trivial use of full bidirectional context while encouraging each directional LSTM to learn compositionally useful features. The LM losses are combined with the task loss using a scalar weight γ chosen (via development experiments) as 0.1. The authors evaluate three configurations (baseline, baseline+dropout, baseline+dropout+LMcost) across eight datasets spanning error detection, NER, chunking and POS-tagging, report averaged metrics over 10 seeds, and find consistent improvements for the +LMcost configuration, with the largest absolute gains on error detection (sparse labels). The manuscript argues the LM objective acts as an auxiliary training signal that encourages general-purpose semantic/syntactic features and serves as a form of regularisation. Empirical claims are supported by per-dataset tables and learning curves, but several methodological details are missing or under-analysed (no statistical significance tests, limited ablations for LMcost in isolation, no runtime profiling, pretrained embedding interaction not controlled), which leaves some ambiguity about the mechanism and robustness of the gains.",
+      "logical_argument_graph": [
+        "Label sparsity in many sequence-labeling datasets -> token-wise supervised objective provides weak/use-limited signal for most tokens",
+        "Language modeling uses each token as a target from a large label space -> stronger per-token training signal",
+        "If LM is applied to single-direction LSTM halves (forward predicts next, backward predicts previous) -> avoids trivial answers from full bidirectional context (A1)",
+        "Combined loss E + γ(E_forward + E_backward) -> shared LSTM learns features useful for both LM and labeling",
+        "Learned features improve sequence labeling across tasks (empirical tables) -> evidence: consistent metric gains (C1)",
+        "Largest gains on error detection due to label sparsity and task-LM relatedness -> empirical observation + interpretation (C3, A8)",
+        "Applying dropout together with LM gives better generalisation than either alone -> observed interactions in experiments (C4)"
+      ],
+      "identified_claims": [
+        {
+          "claim_id": "C1",
+          "claim_label": "LM auxiliary boosts sequence labeling",
+          "claim_text": "Introducing a language modeling auxiliary objective that predicts preceding and following words from the forward and backward LSTM hidden states respectively yields consistent performance improvements on sequence labeling tasks.",
+          "section_anchor": "Abstract; Sections 1,3,5-7,9",
+          "evidence": [
+            "Abstract statement of consistent improvements without extra data.",
+            "Equation 14 describes combined loss Ẽ = E + γ( −→E + ←−E ).",
+            "Tables 1-3 show +LMcost rows outperforming Baseline and +dropout across tasks.",
+            "Learning curves (Figures referenced in Sections 5-7) show sustained advantage during training."
+          ],
+          "uncertainty_flags": [
+            "Magnitude of improvements varies substantially across tasks (large for error detection, small for POS).",
+            "No statistical significance testing provided to confirm improvements exceed run variability."
+          ]
+        },
+        {
+          "claim_id": "C2",
+          "claim_label": "No extra data required",
+          "claim_text": "The proposed multitask objective improves results across eight datasets covering error detection, NER, chunking and POS-tagging, without requiring extra annotated or unannotated data.",
+          "section_anchor": "Abstract; Sections 1,3,4,9",
+          "evidence": [
+            "LM objective is defined on the same tokens in training data (predict wt+1/wt-1).",
+            "Paper states no additional annotated or unannotated data required.",
+            "Experiments run using standard dataset splits without adding corpora for LM."
+          ],
+          "uncertainty_flags": [
+            "Pretrained word embeddings (Google News, PubMed) are external unannotated resources; while LMcost uses no extra text, pretrained embeddings still bring outside information.",
+            "No experiments show effect of adding external unlabeled corpora for LM objective."
+          ]
+        },
+        {
+          "claim_id": "C3",
+          "claim_label": "Large gains for error detection",
+          "claim_text": "The largest absolute gains are observed for error detection (sparse-label setting), where the method gives a substantial improvement (reported 3.9% absolute on FCE) and attains new state-of-the-art results for the evaluated setups.",
+          "section_anchor": "Abstract; Sections 1,5,9; Table 1",
+          "evidence": [
+            "Table 1: FCE TEST Baseline 48.78 vs +LMcost 53.17 (reported in text as 3.9% absolute improvement).",
+            "Section 5 explanation tying label sparsity and LM relatedness to larger gains."
+          ],
+          "uncertainty_flags": [
+            "Numerical discrepancy between table difference (4.39 absolute) and the textual 3.9% claim.",
+            "SOTA claim depends on which prior baselines are compared and whether identical setups were used; explicit pairwise comparisons to prior SOTA are limited.",
+            "No statistical tests shown for this dataset-specific improvement."
+          ]
+        },
+        {
+          "claim_id": "C4",
+          "claim_label": "Dropout+LM > either alone",
+          "claim_text": "Applying dropout to input embeddings plus the language modeling objective provides better generalisation than either modification alone.",
+          "section_anchor": "Section 4; Sections 5-7 (results and discussion)",
+          "evidence": [
+            "Experimental design compares Baseline, Baseline+dropout, Baseline+dropout+LMcost.",
+            "Tables 1-3 show +LMcost (which includes dropout) outperforming both Baseline and +dropout.",
+            "Section 5 notes dropout alone decreased performance for error detection but helped when combined with LM."
+          ],
+          "uncertainty_flags": [
+            "No experiments reported for LMcost without dropout across all tasks, so the independent effect of LMcost vs dropout is not fully isolated.",
+            "Interaction effects may be dataset-dependent (e.g., error detection vs NER)."
+          ]
+        },
+        {
+          "claim_id": "C5",
+          "claim_label": "LM params only affect training",
+          "claim_text": "The added language-modeling parameters increase training-time computation but do not affect test-time runtime, because the LM outputs are unused during inference.",
+          "section_anchor": "Section 3 (end paragraphs)",
+          "evidence": [
+            "Section 3 text: language modeling components are ignored during testing and additional matrices are not used.",
+            "Architecture introduces four additional matrices (Wm, Wq for forward/backward)."
+          ],
+          "uncertainty_flags": [
+            "No empirical measurement (wall-clock time, memory) of training-time overhead provided.",
+            "No implementation detail confirming LM matrices are safely excluded at inference (e.g., whether they remain on model object, memory footprint still present)."
+          ]
+        },
+        {
+          "claim_id": "C6",
+          "claim_label": "γ = 0.1 suitable",
+          "claim_text": "Setting the LM-objective weight γ to 0.1 for all experiments yields good performance; static small γ performs comparably to decaying γ in development experiments.",
+          "section_anchor": "Section 4",
+          "evidence": [
+            "Section 4 states γ chosen as 0.1 based on development experiments.",
+            "They mention experiments with decaying γ where static small γ was comparable or better."
+          ],
+          "uncertainty_flags": [
+            "No quantitative ablation or curve showing performance vs γ or schedules is provided.",
+            "Optimal γ may be task- or dataset-dependent; a single value may not be universally optimal."
+          ]
+        },
+        {
+          "claim_id": "C7",
+          "claim_label": "LM encourages general-purpose features",
+          "claim_text": "The language modeling objective incentivises the framework to learn general-purpose patterns of semantic and syntactic composition that are useful for sequence labeling.",
+          "section_anchor": "Abstract; Sections 1,3,9",
+          "evidence": [
+            "Motivation sections argue LM has larger and more varied label space per token encouraging general features.",
+            "Design choice to use single-direction LSTMs for LM targets intended to force compositional learning."
+          ],
+          "uncertainty_flags": [
+            "No representation analysis (probing classifiers, ablations, visualization) is presented to directly show the nature of learned features.",
+            "Observed metric gains are consistent with the hypothesis but do not prove the exact mechanism."
+          ]
+        }
+      ],
+      "strengths": [
+        {
+          "title": "Clear, minimal algorithmic modification",
+          "description": "The paper proposes a small, well-justified change to standard bidirectional LSTM training that is easy to implement and integrate with existing models.",
+          "evidence": [
+            "Section 3 provides equations (8)-(14) showing the extra transforms and LM softmax layers for forward/backward halves.",
+            "Only four additional parameter matrices are introduced and authors explain they are unused at test time."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Broad empirical evaluation",
+          "description": "The method is evaluated across multiple tasks and domains, demonstrating consistent effects rather than a single-dataset anecdote.",
+          "evidence": [
+            "Experiments on 8 datasets covering error detection, NER, chunking and POS (Sections 5-7; Tables 1-3).",
+            "Use of both general-domain and biomedical embeddings/datasets."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Robust training protocol",
+          "description": "Averaging over multiple random seeds and using development-based early stopping improves reliability of reported results.",
+          "evidence": [
+            "Section 4: each configuration trained with 10 different random seeds and averaged results presented; training stopped after 7 epochs with no dev improvement."
+          ],
+          "confidence": "medium"
+        },
+        {
+          "title": "Practical focus on inference cost",
+          "description": "Authors explicitly design the auxiliary objective to avoid inference-time overhead, which is important for practical adoption.",
+          "evidence": [
+            "Section 3 states LM components are ignored during testing and additional matrices are not used at inference."
+          ],
+          "confidence": "medium"
+        }
+      ],
+      "concerns": [
+        {
+          "issue_code": "M1",
+          "title": "Lack of statistical testing and uncertainty quantification",
+          "description": "The paper reports averaged metrics over 10 seeds but does not present variances, confidence intervals, or statistical tests to establish whether improvements are significant.",
+          "severity": "major",
+          "evidence": [
+            "Tables 1-3 report point estimates only (no +/- variance values).",
+            "Shared analysis notes absence of statistical significance testing."
+          ],
+          "actionable_suggestion": "Report standard deviations or confidence intervals across runs and perform significance tests (e.g., paired bootstrap or t-test) for the primary comparisons (Baseline vs +LMcost).",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M2",
+          "title": "Insufficient ablation isolating LMcost effect",
+          "description": "Across tables LMcost results are presented combined with dropout; experiments showing LMcost without dropout are not consistently reported across tasks, hindering attribution of gains.",
+          "severity": "major",
+          "evidence": [
+            "Section 4 describes three configurations but the +LMcost rows include dropout; no explicit column for Baseline+LMcost without dropout in main tables.",
+            "Section 5 mentions dropout decreased performance on error detection but that LM+dropout helps—LM-only isolation missing."
+          ],
+          "actionable_suggestion": "Add experiments with Baseline+LMcost (no dropout) across representative datasets to quantify LM-only contribution and interaction effects.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M3",
+          "title": "Pretrained embeddings confound attribution",
+          "description": "Pretrained word vectors from external corpora were used; without controlled experiments it's unclear whether improvements stem from LM auxiliary fine-tuning of embeddings rather than directional composition features.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 4: embeddings initialised with Google News or PubMed vectors.",
+            "Shared analysis notes that embeddings are external unannotated resources."
+          ],
+          "actionable_suggestion": "Include controlled runs with random (non-pretrained) embeddings and/or freeze vs fine-tune pretrained embeddings to measure interaction with LMcost.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M4",
+          "title": "No runtime/memory profiling for training overhead",
+          "description": "Claim that LM components only increase training cost and not inference cost is qualitative; authors provide no empirical profiling of extra training time or memory required.",
+          "severity": "minor",
+          "evidence": [
+            "Section 3 states added parameters increase training-time computation but are ignored during testing; no wall-clock numbers provided."
+          ],
+          "actionable_suggestion": "Report training time per epoch, peak GPU memory and parameter counts for baseline and LM-augmented models, and confirm inference footprint is unchanged.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M5",
+          "title": "Insufficient analysis of learned representations and mechanism",
+          "description": "The central explanatory claim is that LMcost encourages general-purpose composition features, but no representation analyses (probing tasks, nearest neighbours, ablation of LSTM components) are provided.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 7 and Conclusion state LM encourages general-purpose semantic/syntactic patterns, but no probing experiments are shown.",
+            "Shared analysis calls for representation probing as a follow-up."
+          ],
+          "actionable_suggestion": "Add representation analyses such as POS/constituent/probing classifiers on hidden states, or nearest-neighbour examples showing LM-trained LSTM encodings capture syntactic/semantic patterns.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M6",
+          "title": "Gamma (γ) tuning not fully documented",
+          "description": "γ was fixed to 0.1 based on development experiments, but no quantitative sensitivity analysis is presented; optimal weight may vary by task.",
+          "severity": "minor",
+          "evidence": [
+            "Section 4 notes γ=0.1 chosen and decaying schedules tried, but no results or curves are included.",
+            "Shared analysis flagged absence of γ tuning plots."
+          ],
+          "actionable_suggestion": "Provide a small ablation showing performance vs γ values and a comparison of static vs decaying schedules on representative datasets.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "N1",
+          "title": "Similarity to prior multitask LM ideas",
+          "description": "Related prior work (e.g., Cheng et al. 2015; Plank et al. 2016) used auxiliary prediction of lexical properties or next-word for related ends; the present design is an incremental variant applying LM to directional halves of a bi-LSTM.",
+          "severity": "moderate",
+          "evidence": [
+            "Related Work (Section 8) cites Cheng et al. (2015) and Plank et al. (2016) as prior architectures that predict next word or word frequency as auxiliaries.",
+            "Paper frames contribution as a novel but simple modification to integrate LM with bidirectional sequence labeling."
+          ],
+          "actionable_suggestion": "Clarify distinctions from related work with more detailed comparison experiments or discuss trade-offs more explicitly (why directional-half LM vs other LM multitask setups).",
+          "novelty_risk": true,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        }
+      ],
+      "comparable_works": [
+        {
+          "citation_label": "Collobert et al. (2011)",
+          "relevance": "Background on neural sequence labeling and multitask approaches that learn features from raw tokens.",
+          "similarity_or_difference": "Similar in using neural nets to learn features from tokens; differs by not using LM auxiliary objective in the same way.",
+          "source_trace": "Paper references Collobert et al. in Introduction (shared_analysis references)."
+        },
+        {
+          "citation_label": "Cheng et al. (2015)",
+          "relevance": "Previous use of next-word prediction as auxiliary task for name/OOV detection.",
+          "similarity_or_difference": "Conceptually similar in using next-word prediction as auxiliary signal; differs in architecture (regular RNN vs bi-LSTM halves integration) and primary task focus.",
+          "source_trace": "Section 8 references Cheng et al. and contrasts their regular recurrent architecture with the present bidirectional integration."
+        },
+        {
+          "citation_label": "Plank et al. (2016)",
+          "relevance": "Predicting word frequency jointly with POS-tagging is an auxiliary objective shown to help low-frequency words.",
+          "similarity_or_difference": "Similar theme of auxiliary supervision to improve tagging; LM objective here is more general (predict full token) than frequency prediction used by Plank et al.",
+          "source_trace": "Section 8 mentions Plank et al. as related architecture for POS-tagging."
+        },
+        {
+          "citation_label": "Lample et al. (2016)",
+          "relevance": "Strong contemporary bidirectional LSTM-CRF architecture for NER against which the paper compares.",
+          "similarity_or_difference": "Shared base architecture (bi-LSTM-CRF) but Lample et al. used other engineering choices (special embeddings/custom LSTMs); their reported higher CoNLL-03 score is noted.",
+          "source_trace": "Section 6 mentions Lample et al.'s better CoNLL-03 result and attributes differences to embeddings/architecture."
+        },
+        {
+          "citation_label": "Rei et al. (2016)",
+          "relevance": "Direct baseline implementation used by the authors; their code forms the basis of the baseline system.",
+          "similarity_or_difference": "Authors adopt Rei et al.'s model and extend it with LM auxiliary; experiments designed to be comparable.",
+          "source_trace": "Section 2 and Section 4 explicitly state using Rei et al. (2016) as baseline and code base."
+        }
+      ],
+      "uncertainty_flags": [
+        "No statistical significance tests; effect sizes might be within run variance.",
+        "γ selection rationale not quantified; sensitivity across tasks unknown.",
+        "LMcost presented combined with dropout in tables; LM-only effects insufficiently isolated.",
+        "Pretrained embeddings introduce external information that may interact with LM objective.",
+        "No empirical runtime or memory profiling for training overhead."
+      ],
+      "alternative_interpretations": [
+        "Improvements arise mainly from better fine-tuning of pretrained embeddings under an auxiliary prediction loss rather than from learning improved compositional features in directional LSTMs.",
+        "LM objective acts primarily as a regulariser that reduces overfitting (especially when combined with dropout) rather than producing qualitatively different features.",
+        "Reported gains on error detection are due to dataset-specific idiosyncrasies (e.g., label conversion or evaluation details) rather than a general advantage of LM auxiliary objectives.",
+        "Apparent consistency across datasets is partly due to using strong baseline hyperparameters and averaging across seeds; marginal improvements may not generalize to all architectures or hyperparameter settings."
+      ],
+      "transparency_notes": [
+        "No standard deviations or confidence intervals reported for per-dataset metrics; only averages provided.",
+        "Details of γ tuning (grid, trials, metrics used for selection) not provided and decaying-schedule results not shown.",
+        "No wall-clock training-time, parameter-counts, or peak memory reported to quantify training overhead.",
+        "LM softmax vocabulary size and exact treatment of rare/OOV tokens in LM objective not fully enumerated.",
+        "Source code made public (URL removed for anonymisation) but reproducibility would benefit from environment/hardware details and training logs."
+      ],
+      "creativity_safeguard": {
+        "lacks_close_analogs": false,
+        "treat_as_innovation_signal": false,
+        "novelty_not_validity_note": "Even if the architectural idea is incremental relative to existing auxiliary-task and multitask literature, increments can be scientifically valuable when they are simple, broadly applicable, and empirically validated; however, novelty does not imply empirical validity or robustness without rigorous evaluation.",
+        "counterfactual_conditions_for_success": [
+          "If label distributions are highly imbalanced (sparse positive labels), LM auxiliary will provide stronger benefit by supplying per-token training signal.",
+          "If γ is tuned per task/dataset (or adaptively scheduled), LM auxiliary may yield larger or more consistent gains.",
+          "If pretrained embeddings are not the dominant information source (e.g., when using random initialisations or freezing embeddings), the LM auxiliary must deliver improvement via compositional features — success in that setting would strengthen the mechanistic claim.",
+          "If auxiliary LM is trained using larger unlabeled in-domain corpora (as suggested in future work), the benefit may scale and generalise further."
+        ]
+      },
+      "novelty_lenses": [
+        {
+          "lens": "algorithmic",
+          "verdict": "incremental",
+          "rationale": "Architectural change is a small, well-motivated extension of standard bi-LSTM multitask designs: apply LM targets to directional halves to avoid full-context leakage. This is conceptually straightforward and builds on prior auxiliary-task literature.",
+          "evidence": [
+            "Section 3 design choice to use forward/backward hidden states separately to predict next/previous token.",
+            "Related work references (Cheng et al. 2015, Plank et al. 2016) that use auxiliary lexical prediction objectives."
+          ],
+          "uncertainty_flags": [
+            "Degree of novelty depends on prior art distinctions (next-word auxiliary in bidirectional settings); paper could better position itself vs very similar prior setups."
+          ]
+        },
+        {
+          "lens": "empirical",
+          "verdict": "incremental-but-meaningful",
+          "rationale": "Consistent cross-dataset improvements indicate a meaningful empirical contribution, particularly for sparse-label tasks like error detection. However, lack of statistical testing and some incomplete ablations temper the strength of the empirical claim.",
+          "evidence": [
+            "Tables 1-3 show improvements across 8 datasets with largest gains in error detection.",
+            "Learning curves indicate sustained benefit during training."
+          ],
+          "uncertainty_flags": [
+            "No confidence intervals or hypothesis tests; interaction with dropout and embeddings not fully disentangled."
+          ]
+        },
+        {
+          "lens": "practical/engineering",
+          "verdict": "valuable",
+          "rationale": "Low-friction adoption (no inference-time cost, small additional parameters during training) makes the technique practically attractive for practitioners wanting modest gains without deployment overhead.",
+          "evidence": [
+            "Section 3 claims LM matrices unused during testing; small number of additional matrices introduced.",
+            "Authors made code available to facilitate replication (anonymised URL present)."
+          ],
+          "uncertainty_flags": [
+            "Training-time overhead not measured; practical adoption requires clarity on training cost and scalability with larger vocabularies."
+          ]
+        }
+      ],
+      "confidence_interval": {
+        "lower": 0.15,
+        "upper": 0.85,
+        "rationale": "I am moderately confident in the paper's empirical direction and in the correctness of reported improvements (given multiple datasets and averaged seeds), but uncertainty remains due to absence of statistical testing, incomplete ablations (LM without dropout), and limited mechanism analysis. The interval reflects reasonable belief in the core findings but acknowledges methodological gaps that affect robustness."
+      }
+    },
+    {
+      "reviewer_id": "reviewer_4",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "reviewer_label": "GPT",
+      "cognitive_role": "novelty_assessor_disruptive",
+      "epistemic_variant": "disruptive-thinking lens",
+      "paper_type_assumed": "empirical",
+      "prior_stage_inputs": [
+        "SHARED_ANALYSIS: extracted_claims, identified_assumptions, uncertainty_flags, chaining_notes",
+        "PAPER_CONTEXT: research_question, contribution_type/style, evaluation_dimensions",
+        "MANUSCRIPT_CONTEXT: full paper text and tables (sections 1-9, Tables 1-3, Figures described)"
+      ],
+      "analytical_summary": "The paper argues that sequence labeling models (bidirectional LSTMs with optional CRF outputs) underutilise the abundant unlabelled signal in each training sentence because many tokens carry the majority label. To remedy this, the authors augment training with a secondary unsupervised objective: train the forward LSTM half to predict the next word and the backward half to predict the previous word. The LM heads are lightweight (two projection matrices and two softmax output matrices), combined with task loss via Ẽ = E_task + γ(E_forward + E_backward). The LM losses are computed on the same labeled sentences (no extra unlabeled text) and the LM outputs are ignored at inference, so additional parameters only affect training. They pair this auxiliary objective with dropout on input embeddings. Empirically, they evaluate baseline, baseline+dropout, and baseline+dropout+LMcost across 8 datasets (error detection, NER, chunking, POS). Results show consistent gains in all tasks, largest absolute gains for error detection (claimed ~3.9% F0.5 on FCE), modest consistent gains for NER/chunking/POS. Key operational choices: γ=0.1 (static), softmax over full vocab (no approximate loss used), 10 random seeds and development-based early stopping/model selection, pretrained embeddings used but held constant across ablations. The paper's causal claim is that the LM objective encourages learning of more generalizable compositional features which improve sequence labeling, particularly when label signals are sparse.",
+      "logical_argument_graph": [
+        "A: Sequence labeling tasks often have sparse/majority labels -> models get weak training signal from majority tokens",
+        "B: Language modeling forces representation learning that captures composition/semantics because predicting words requires rich context",
+        "C: If LM training is applied to single-direction LSTM halves (forward predicts next word, backward predicts previous), it avoids trivial leakage from full-sentence bi-LSTM and encourages composition learning in each half",
+        "D: Combine LM loss with labeling loss using Ẽ = E + γ(E_forward + E_backward); set γ small (0.1) to bias towards labels while preserving LM influence",
+        "E: LM heads add parameters/training cost but not inference cost because LM outputs unused at test time",
+        "F: Empirical evaluation across 8 datasets (baseline, +dropout, +LMcost) shows consistent performance gains, largest for sparse-label error detection",
+        "G: Therefore, LM auxiliary improves learned features and generalisation across sequence labeling tasks without extra data"
+      ],
+      "identified_claims": [
+        {
+          "claim_id": "C1",
+          "claim_label": "LM auxiliary boosts sequence labeling",
+          "claim_text": "Introducing a language modeling auxiliary objective that predicts preceding and following words from the forward and backward LSTM hidden states respectively yields consistent performance improvements on sequence labeling tasks.",
+          "section_anchor": "Abstract; Sections 3,5-7; Tables 1-3",
+          "evidence": [
+            "Abstract: 'This language modeling objective provided consistent performance improvements on every benchmark.'",
+            "Section 3: formulation and combined loss (Equation 14)",
+            "Table 1: +LMcost row shows higher F0.5 than Baseline/+dropout for error detection",
+            "Table 2: +LMcost row shows higher entity-level F1 across NER/chunking",
+            "Table 3: +LMcost row shows small consistent accuracy gains for POS-tagging"
+          ],
+          "uncertainty_flags": [
+            "No statistical significance tests reported; per-run variance not presented though averages over 10 seeds are reported.",
+            "LMcost entries in tables are combined with dropout (LM not isolated across all tasks), so independent effect of LM across every task is partially conflated with dropout."
+          ]
+        },
+        {
+          "claim_id": "C2",
+          "claim_label": "No extra data required",
+          "claim_text": "The proposed multitask objective improves results across eight datasets ... without requiring extra annotated or unannotated data.",
+          "section_anchor": "Abstract; Sections 3,4,9",
+          "evidence": [
+            "Sections state LM objective uses the same dataset tokens (predict wt+1/wt-1).",
+            "Abstract explicitly states no additional annotated or unannotated data required.",
+            "Evaluation uses standard splits without additional corpora for LM objective."
+          ],
+          "uncertainty_flags": [
+            "Pretrained word embeddings are initialised from external corpora (Google News, PubMed). While embeddings are kept constant across ablations, they remain an external unannotated resource that can interact with LM training.",
+            "No direct comparison to adding external unannotated data; claim pertains to LM objective not needing extra data but nuance should be explicit."
+          ]
+        },
+        {
+          "claim_id": "C3",
+          "claim_label": "Large gains for error detection",
+          "claim_text": "The largest absolute gains are observed for error detection (sparse-label setting), where the method gives a substantial improvement (reported 3.9% absolute on FCE) and attains new state-of-the-art results for the evaluated setups.",
+          "section_anchor": "Section 5; Table 1",
+          "evidence": [
+            "Table 1: Baseline F0.5 on FCE TEST 48.78 vs +LMcost 53.17 (table difference = 4.39; text states 3.9%).",
+            "Section 5 text highlights 3.9% absolute improvement and SOTA claim."
+          ],
+          "uncertainty_flags": [
+            "Numerical discrepancy between table (4.39) and textual 3.9% value.",
+            "No statistical testing; SOTA claim depends on comparison choices and is not exhaustively benchmarked against all prior systems or identical evaluation conditions."
+          ]
+        },
+        {
+          "claim_id": "C4",
+          "claim_label": "Dropout+LM synergy",
+          "claim_text": "Applying dropout to input embeddings plus the language modeling objective provides better generalisation than either modification alone.",
+          "section_anchor": "Section 4; Sections 5-7; experimental design",
+          "evidence": [
+            "Section 4: reported three configurations: baseline, baseline+dropout, baseline+dropout+LMcost.",
+            "Tables show +LMcost rows (which include dropout) outperform both Baseline and +dropout in reported metrics.",
+            "Section 5 discussion: dropout decreased performance alone on error detection but improved in combination with LMcost."
+          ],
+          "uncertainty_flags": [
+            "No table or experiment shows LMcost without dropout consistently across all tasks; interaction may be dataset-dependent.",
+            "It is unclear if LM alone (without dropout) would always help or sometimes hurt; partial ablation exists but not comprehensive."
+          ]
+        },
+        {
+          "claim_id": "C5",
+          "claim_label": "LM parameters only affect training",
+          "claim_text": "The added language-modeling parameters increase training-time computation but do not affect test-time runtime, because the LM outputs are unused during inference.",
+          "section_anchor": "Section 3 (end paragraphs)",
+          "evidence": [
+            "Section 3: describes 4 additional parameter matrices and states LM components are ignored during testing.",
+            "Implementation uses softmax LM only during training."
+          ],
+          "uncertainty_flags": [
+            "No empirical runtime/memory profiling is provided to quantify training overhead or to confirm negligible inference impact in realistic frameworks.",
+            "In some frameworks unused parameters still affect model loading or memory footprint even if not active at inference—this is not addressed empirically."
+          ]
+        }
+      ],
+      "strengths": [
+        {
+          "title": "Simple, well-scoped architectural modification",
+          "description": "The proposed LM auxiliary is a compact change (four matrices and two softmax heads) that integrates with standard bidirectional LSTMs and leaves inference untouched.",
+          "evidence": [
+            "Section 3 describes −→Wm, ←−Wm, −→Wq, ←−Wq as the only added matrices and states LM outputs are ignored at test time."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Broad empirical evaluation across diverse sequence labeling tasks",
+          "description": "The paper tests the idea across eight datasets covering error detection, NER, chunking, and POS, demonstrating consistent improvements rather than cherry-picked wins.",
+          "evidence": [
+            "Evaluation Setup (Section 4) lists 8 datasets; Tables 1-3 show results across these tasks."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Attention to randomness and model selection",
+          "description": "The authors average results over 10 random seeds and use development-based early stopping to mitigate single-run noise.",
+          "evidence": [
+            "Section 4: 'each configuration was trained with 10 different random seeds and the averaged results are presented... Training was stopped when performance on the development set had not improved for 7 epochs.'"
+          ],
+          "confidence": "medium"
+        }
+      ],
+      "concerns": [
+        {
+          "issue_code": "M1",
+          "title": "Insufficient statistical analysis of reported gains",
+          "description": "Improvements are reported as averages over 10 seeds but no statistical significance testing, confidence intervals, or per-run variance is provided to judge whether improvements exceed noise.",
+          "severity": "major",
+          "evidence": [
+            "Shared analysis uncertainty: 'No statistical significance tests reported for improvements; effect sizes may be within run variability.'",
+            "Tables present single averaged numbers without standard deviation or significance."
+          ],
+          "actionable_suggestion": "Report per-system standard deviations or confidence intervals across runs, run paired significance tests (e.g., bootstrap, paired t-test) against the immediate baseline(s), and present per-epoch learning curves with variance bands.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M2",
+          "title": "LM effect not fully isolated from dropout",
+          "description": "All LMcost results are presented in combination with dropout; LM-only (without dropout) is not consistently reported across tasks, leaving ambiguity about whether gains stem from LM, dropout, or their interaction.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 4: three systems are baseline, baseline+dropout, baseline+dropout+LMcost; no consistent 'baseline+LMcost (no dropout)' rows in Tables 1–3.",
+            "Shared analysis: 'LM objective experiments are reported combined with dropout in tables; isolated effect of LM without dropout not consistently shown across tasks.'"
+          ],
+          "actionable_suggestion": "Include a full ablation matrix (baseline, +dropout, +LM only, +dropout+LM) per dataset, or at least for representative tasks (error detection, NER, POS) to quantify interactions.",
+          "novelty_risk": true,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M3",
+          "title": "No representation-level analysis to support mechanism claim",
+          "description": "The central claim that LMaux induces 'general-purpose semantic/syntactic composition features' is supported only indirectly by downstream gains; no probing, visualization, or transfer experiments are provided to substantiate this mechanism.",
+          "severity": "moderate",
+          "evidence": [
+            "Shared analysis: 'No direct analysis of learned representations (e.g., probing, visualization) is provided to substantiate general-purpose patterns.'",
+            "Paper asserts representation quality but provides only task performance metrics."
+          ],
+          "actionable_suggestion": "Add representation analyses: intrinsic probes (POS/constituency/semantic role), similarity structure comparisons, or transfer to small held-out tasks; alternatively train with and without LMaux and run diagnostic classifiers on hidden states.",
+          "novelty_risk": true,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M4",
+          "title": "Claims about no extra data and training-time costs need qualification and measurement",
+          "description": "The claim that the method requires no additional data is technically true for the LM objective, but pretrained embeddings from external corpora are used; training-time cost is described qualitatively without empirical profiling.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 4: pretrained embeddings from Google News/PubMed used.",
+            "Section 3: statement that additional LM matrices do not affect test-time runtime but no timing or memory numbers provided."
+          ],
+          "actionable_suggestion": "Explicitly state the role of pretrained embeddings in the 'no extra data' claim; provide wall-clock training time comparisons, GPU memory usage, and (if possible) inference model size with and without LM parameters loaded.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M5",
+          "title": "Hyperparameter γ selection under-documented",
+          "description": "The choice of γ=0.1 is asserted to be based on development experiments and compared qualitatively to decaying schedules, but quantitative tuning results or sensitivity analyses are not reported.",
+          "severity": "minor",
+          "evidence": [
+            "Section 4: 'Based on development experiments we set γ to 0.1... experiments where γ was gradually decreased, but found that a small static value performed comparably well or even better.'",
+            "Shared analysis: 'No quantitative comparison tables or curves between different γ schedules are reported.'"
+          ],
+          "actionable_suggestion": "Provide a short sweep (γ ∈ {0.01,0.05,0.1,0.2}) on representative datasets, or at least sensitivity curves showing performance vs γ, and document whether optimal γ differs by task.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M6",
+          "title": "State-of-the-art claims need fuller contextualization",
+          "description": "Paper claims new state-of-the-art on some error detection benchmarks, but the comparisons and evaluation conditions for prior SOTA systems are not exhaustively detailed and a numerical discrepancy exists (text vs table).",
+          "severity": "moderate",
+          "evidence": [
+            "Section 5: 'These are also the new state-of-the-art results for error detection on both FCE and CoNLL-14 datasets.'",
+            "Table 1 shows Baseline vs +LMcost difference inconsistent with textual 3.9% claim."
+          ],
+          "actionable_suggestion": "List the exact prior SOTA numbers and sources, confirm that evaluation scripts and pre/post-processing match, correct the numerical discrepancy between table and text, and add statistical comparison where possible.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        }
+      ],
+      "comparable_works": [
+        {
+          "citation_label": "Collobert et al. 2011",
+          "relevance": "Foundational neural sequence labeling and multitask ideas; multi-task predate modern LSTM use and motivate weight-sharing.",
+          "similarity_or_difference": "Similar in using multitask sharing for NLP tasks but differs in using LM auxiliary on LSTM halves and modern recurrent architectures.",
+          "source_trace": "Manuscript references Collobert et al. (2011) in Introduction"
+        },
+        {
+          "citation_label": "Cheng et al. 2015",
+          "relevance": "Prior work that predicts next word to detect OOV names; conceptually related to using LM as auxiliary.",
+          "similarity_or_difference": "Cheng et al. predict next word in a unidirectional RNN for a specific application; this paper generalises LM auxiliary to bidirectional LSTM halves and applies it across sequence labeling tasks.",
+          "source_trace": "Section 8 references Cheng et al. (2015)"
+        },
+        {
+          "citation_label": "Plank et al. 2016",
+          "relevance": "Multi-task auxiliary predicting word frequency for POS; shows auxiliary objectives can help tagging.",
+          "similarity_or_difference": "Plank et al. target frequency as a proxy signal, whereas this paper uses full LM prediction which is a more complex auxiliary task; both show auxiliary tasks can yield gains but differ in target and transfer scope.",
+          "source_trace": "Section 8 references Plank et al. (2016)"
+        },
+        {
+          "citation_label": "Lample et al. 2016",
+          "relevance": "State-of-the-art NER architecture used for contextual comparison on CoNLL-03.",
+          "similarity_or_difference": "Lample et al. achieve higher CoNLL-03 results possibly due to specialised embeddings and architecture; current paper focuses on adding LMaux onto a different baseline (Rei et al. 2016).",
+          "source_trace": "Section 6 mentions Lample et al. (2016) comparison"
+        }
+      ],
+      "uncertainty_flags": [
+        "No statistical tests or variance measures reported for improvements.",
+        "LM aux results reported together with dropout; LM-only effects not systematically isolated across tasks.",
+        "γ hyperparameter choice asserted but not quantitatively detailed.",
+        "Pretrained embeddings are external: the 'no extra data' claim needs nuance.",
+        "Training-time cost and memory overhead not empirically profiled.",
+        "Numerical discrepancy between Table 1 and text regarding FCE gains (4.39 vs 3.9 reported)."
+      ],
+      "alternative_interpretations": [
+        "Observed gains could be primarily due to better regularisation or embedding fine-tuning dynamics introduced by joint LM training rather than formation of qualitatively different compositional features.",
+        "Dropout+LM interaction may be the real driver: LM provides dense gradients enabling dropout to be effective; without LM, dropout may harm (as in error detection).",
+        "Pretrained embeddings might interact with LM fine-tuning differently across systems, meaning some gains stem from embedding adaptation rather than LM-induced higher-level composition.",
+        "Improvements, especially small ones on POS/NER, might be within experimental noise if not statistically validated."
+      ],
+      "transparency_notes": [
+        "Code base is reported as public in Section 4 but anonymised URL removed—availability will help reproduction; ensure repository contains scripts to reproduce exact splits and hyperparameters.",
+        "Exact vocabulary sizes and softmax implementation details (full-vocab vs restricted) are not listed; these affect training cost and potentially convergence.",
+        "Details on whether LM softmax shares embedding matrix with input embeddings or uses distinct matrices are not explicit—clarify parameter sharing choices.",
+        "No explicit mention of tokenisation or label normalization steps for CoNLL-14 conversions; these preprocessing details affect comparability with prior work."
+      ],
+      "creativity_safeguard": {
+        "lacks_close_analogs": true,
+        "treat_as_innovation_signal": true,
+        "novelty_not_validity_note": "The relative scarcity of direct precedents for applying a bidirectional LSTM half-wise language-modeling auxiliary on the same labeled corpus should be treated as a sign of conceptual innovation; however, empirical robustness and mechanism must be demonstrated separately—novelty does not imply correctness.",
+        "counterfactual_conditions_for_success": [
+          "If LM gradients consistently provide orthogonal signal to label gradients (low conflict) across datasets, then auxiliary will improve generalisation.",
+          "If single-direction hidden states genuinely lack trivial access to target tokens (i.e., architecture prevents leakage), then LM forces composition learning and benefits downstream tasks.",
+          "If γ can be tuned per task or annealed to balance early representation learning and later specialization, improvements can be maximised.",
+          "If LM training scales to larger unlabeled corpora or approximate softmaxes (NCE/hierarchical) without loss of signal, method may yield larger gains when combined with external unlabeled resources."
+        ]
+      },
+      "novelty_lenses": [
+        {
+          "lens": "disruptive-thinking",
+          "verdict": "promisingly novel",
+          "rationale": "Designing LM targets for single-direction halves of a bi-LSTM trained on the same labeled corpus is an uncommon but coherent conceptual frame that reframes LM as an internal auxiliary to force composition learning without extra data.",
+          "evidence": [
+            "Section 3 explains predicting next/previous words from forward/backward hidden states to avoid trivial leakage.",
+            "The approach is applied broadly across tasks and shows consistent empirical gains."
+          ],
+          "uncertainty_flags": [
+            "Mechanistic evidence (representation probing) lacking; interaction with pretrained embeddings and dropout may explain some gains."
+          ]
+        },
+        {
+          "lens": "conventional-novelty",
+          "verdict": "incremental to existing multitask literature",
+          "rationale": "Multitask and auxiliary LM signals have precedent (e.g., Collobert, Cheng, Plank), so this work can be seen as an engineering-driven refinement with empirical validation across multiple tasks rather than a radical theoretical departure.",
+          "evidence": [
+            "Section 8 cites Collobert (2008), Cheng et al. (2015), Plank et al. (2016) as related work.",
+            "Architecture modifications are modest (four matrices + softmax heads)."
+          ],
+          "uncertainty_flags": [
+            "The particular half-wise LM constraint is less commonly reported, which preserves a degree of novelty."
+          ]
+        },
+        {
+          "lens": "practical-impact",
+          "verdict": "likely useful in practice if reproduced robustly",
+          "rationale": "The method is straightforward to implement, integrates with existing pipelines, does not alter inference latency, and shows consistent empirical gains across tasks, which makes it attractive for practitioners.",
+          "evidence": [
+            "Section 3: LM components ignored at test time; Section 4: code availability mentioned.",
+            "Tables show consistent improvements across 8 datasets."
+          ],
+          "uncertainty_flags": [
+            "Training-time cost and complexity of full softmax LM may limit adoption unless approximate losses or profiling are provided."
+          ]
+        }
+      ],
+      "confidence_interval": {
+        "lower": 0.55,
+        "upper": 0.85,
+        "rationale": "I have moderate-to-high confidence (reflected by the interval) in the core empirical pattern (consistent improvements across datasets) because of multiple datasets and averaged runs, but lower confidence in some specific claims (magnitude significance, SOTA assertion, and the exact mechanism) due to missing statistical tests, incomplete ablations, and lack of representation analyses."
+      }
+    },
+    {
+      "reviewer_id": "reviewer_5",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "reviewer_label": "GPT",
+      "cognitive_role": "claim_verifier",
+      "epistemic_variant": "evidence-and-uncertainty-first",
+      "paper_type_assumed": "empirical",
+      "prior_stage_inputs": [
+        "SHARED_ANALYSIS",
+        "PRIOR_STAGE_DIGEST"
+      ],
+      "analytical_summary": "The manuscript proposes a simple multitask modification to bidirectional LSTM sequence labelers: train the forward LSTM to predict the next word and the backward LSTM to predict the previous word, adding their negative log-likelihoods to the task loss with weight γ (set to 0.1). The LM heads are used only during training; at inference the model reverts to the baseline label-prediction computations. The paper evaluates three configurations (baseline, baseline+embedding-dropout, baseline+dropout+LMcost) across 8 datasets spanning error detection, NER, chunking and POS. Reported results (averaged over 10 random seeds, early-stopping on dev) show consistent improvements when adding the LM objective (largest absolute gains on sparse-label error detection). The authors argue the LM objective forces single-direction LSTM halves to learn compositional semantic/syntactic features that transfer to labeling. The empirical chain is: label sparsity and limited per-token supervision → LM objective provides richer per-token signal → learned features generalize to labeling → improved downstream metrics. The manuscript provides architecture equations, training details, and per-dataset metric tables but lacks statistical significance testing, some ablations (LMcost without dropout across tasks), sensitivity analyses for γ, training-time/memory profiling, and direct representation analyses to substantiate the mechanism claim.",
+      "logical_argument_graph": [
+        "Sequence labeling models receive sparse supervisory signal per token (premise supported by dataset label distributions).",
+        "Language modeling provides a denser, richer supervisory signal per token (premise: LM predicts many possible words).",
+        "If LM is applied to single-direction LSTM halves, it avoids trivial shortcuts from full bidirectional context (design decision; Section 3).",
+        "Therefore, adding LM losses to forward/backward halves encourages learning of compositionally useful features (hypothesis).",
+        "These learned features, when shared with the labeling objective, should improve sequence labeling performance (hypothesis).",
+        "Empirical evaluation across 8 datasets shows consistent metric gains for +LMcost (evidence: Tables 1-3).",
+        "Largest gains occur on error detection (sparse labels), supporting the claim that LM helps where labeled signal is weakest (evidence: Table 1).",
+        "Operational claims: γ=0.1 is sufficient; LM parameters do not affect inference runtime; dropout interacts beneficially with LM (assertions with partial evidence)."
+      ],
+      "identified_claims": [
+        {
+          "claim_id": "C1",
+          "claim_label": "LM auxiliary boosts sequence labeling",
+          "claim_text": "Introducing a language modeling auxiliary objective that predicts preceding and following words from the forward and backward LSTM hidden states respectively yields consistent performance improvements on sequence labeling tasks.",
+          "section_anchor": "Abstract; Sections 1,3,5-7,9",
+          "evidence": [
+            "Tables 1-3 show +LMcost consistently improves metrics over Baseline and +dropout across error detection, NER/chunking and POS datasets.",
+            "Section 5,6,7 training curves described (Figures 2-4) show sustained or earlier improved development performance for +LMcost."
+          ],
+          "uncertainty_flags": [
+            "No statistical significance tests or per-run variance reported beyond averaged results; some reported gains are small and could be within run variability.",
+            "LMcost results are presented combined with dropout; LM-only (without dropout) is not consistently shown across all tasks, so some improvements may reflect interaction effects."
+          ]
+        },
+        {
+          "claim_id": "C2",
+          "claim_label": "No extra data required",
+          "claim_text": "The proposed multitask objective improves results across eight datasets covering error detection, NER, chunking and POS-tagging, without requiring extra annotated or unannotated data.",
+          "section_anchor": "Abstract; Sections 1,3,4,9",
+          "evidence": [
+            "Section 3 defines LM loss computed over the same training sentences; Section 4 states experiments use existing training splits.",
+            "Abstract explicitly states no additional annotated or unannotated data required."
+          ],
+          "uncertainty_flags": [
+            "The models use pretrained word embeddings (Google News, PubMed) which are external unannotated data; while the LM auxiliary itself uses only labeled training text, the paper's phrasing 'no additional unannotated data' needs nuance.",
+            "No experiments test adding further unlabeled corpora to the LM objective, so the claim is bounded to the current implementation but could be misleading if read as 'embeddings-free' or 'no external resources used'."
+          ]
+        },
+        {
+          "claim_id": "C3",
+          "claim_label": "Large gains for error detection",
+          "claim_text": "The largest absolute gains are observed for error detection (sparse-label setting), where the method gives a substantial improvement (reported 3.9% absolute on FCE) and attains new state-of-the-art results for the evaluated setups.",
+          "section_anchor": "Abstract; Sections 1,5,9; Table 1",
+          "evidence": [
+            "Table 1 shows FCE TEST Baseline F0.5 48.78 vs +LMcost 53.17 (difference 4.39 absolute in table; text states 3.9%).",
+            "Section 5 text reports this improvement and claims new state-of-the-art on FCE and CoNLL-14."
+          ],
+          "uncertainty_flags": [
+            "Numerical inconsistency between table difference (4.39) and reported 3.9% in text.",
+            "State-of-the-art claim depends on baselines and exact evaluation protocols; the manuscript references comparable prior work but does not exhaustively present all SOTA numbers or controlled comparisons (e.g., embedding differences).",
+            "No significance testing to verify the practical reliability of the claimed SOTA gains."
+          ]
+        },
+        {
+          "claim_id": "C4",
+          "claim_label": "Dropout+LM > either alone",
+          "claim_text": "Applying dropout to input embeddings plus the language modeling objective provides better generalisation than either modification alone.",
+          "section_anchor": "Section 4; Sections 5-7 (results and discussion)",
+          "evidence": [
+            "Experimental protocol compares Baseline, Baseline+dropout, Baseline+dropout+LMcost; +LMcost rows (which include dropout) consistently outperform +dropout.",
+            "Section 5 notes dropout alone decreased performance on error detection but in combination with LMcost gave improvements."
+          ],
+          "uncertainty_flags": [
+            "LMcost is not evaluated in isolation (without dropout) across all tasks in presented tables, so the independent effect of LMcost is incompletely isolated.",
+            "The interaction pattern may be dataset-specific (e.g., dropout alone harms error detection but helps other tasks)."
+          ]
+        },
+        {
+          "claim_id": "C5",
+          "claim_label": "LM params only affect training",
+          "claim_text": "The added language-modeling parameters increase training-time computation but do not affect test-time runtime, because the LM outputs are unused during inference.",
+          "section_anchor": "Section 3 (end paragraphs)",
+          "evidence": [
+            "Section 3 explicitly states the LM components are ignored during testing and additional matrices are not used.",
+            "Section 3 describes the four additional parameter matrices introduced for LM."
+          ],
+          "uncertainty_flags": [
+            "No empirical measurements (wall-clock time, memory) are provided to quantify training overhead or to confirm negligible effect at inference (model loading, memory footprint with unused parameters, or frameworks' behaviour not profiled).",
+            "Implementation details (e.g., whether LM parameter tensors are retained in final model object) can affect inference memory; claim is plausible but unmeasured."
+          ]
+        },
+        {
+          "claim_id": "C6",
+          "claim_label": "γ = 0.1 suitable",
+          "claim_text": "Setting the LM-objective weight γ to 0.1 for all experiments yields good performance; static small γ performs comparably to decaying γ in development experiments.",
+          "section_anchor": "Section 4",
+          "evidence": [
+            "Section 4 states γ set to 0.1 based on development experiments and that decaying γ performed comparably or worse in those experiments."
+          ],
+          "uncertainty_flags": [
+            "No quantitative ablation results (tables/curves) comparing γ values or schedules are shown, so generality of the chosen γ across tasks/datasets is uncertain.",
+            "Optimal γ may be dataset-dependent; the manuscript asserts development decisions but doesn't provide supporting curves or sensitivity analysis."
+          ]
+        },
+        {
+          "claim_id": "C7",
+          "claim_label": "LM encourages general-purpose features",
+          "claim_text": "The language modeling objective incentivises the framework to learn general-purpose patterns of semantic and syntactic composition that are useful for sequence labeling.",
+          "section_anchor": "Abstract; Sections 1,3,9",
+          "evidence": [
+            "Motivational text and architecture design in Sections 1 and 3 explain why predicting surrounding words should teach compositional features.",
+            "Empirical gains across tasks (especially sparse-label error detection) are consistent with this mechanism."
+          ],
+          "uncertainty_flags": [
+            "No representational analyses (probing classifiers, visualization, layer-wise transfer experiments) are provided to directly demonstrate that the LM auxiliary yields qualitatively different or more general features.",
+            "Metric improvements are consistent with but do not prove the exact mechanism; alternative mechanisms (regularisation, smoother optimisation, embedding fine-tuning) could contribute."
+          ]
+        }
+      ],
+      "strengths": [
+        {
+          "title": "Simple, well-motivated architectural modification",
+          "description": "The proposed LM auxiliary is minimal to implement (four projection/softmax matrices), conceptually clear, and integrates cleanly with bidirectional LSTMs.",
+          "evidence": [
+            "Section 3 gives concise equations (8-14) showing LM heads applied to single-direction LSTM outputs.",
+            "Paper emphasises small parameter addition and reuse of existing architecture; prior-stage digests note simplicity as a strength."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Broad empirical coverage across tasks and datasets",
+          "description": "Evaluation spans 8 datasets across error detection, NER, chunking and POS, showing consistent improvements rather than cherry-picked gains.",
+          "evidence": [
+            "Tables 1-3 show results on FCE, CoNLL-14, CoNLL-03, CHEMDNER, JNLPBA, CoNLL-00, PTB-POS and GENIA-POS.",
+            "Section 4 describes controlled comparisons and averaging over 10 seeds."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Controlled ablation for embedding-dropout vs. LM objective",
+          "description": "The experimental setup includes baseline, baseline+dropout and baseline+dropout+LMcost to separate effects of a commonly used regulariser from the novel objective.",
+          "evidence": [
+            "Section 4 explicitly explains the three configurations and rationale; tables present incremental results.",
+            "Prior reviewers highlight the controlled comparisons as positive."
+          ],
+          "confidence": "high"
+        },
+        {
+          "title": "Reproducibility facilitators",
+          "description": "Code availability, detailed hyperparameter description (LSTM sizes, optimizer, batch size, early stopping), and using standard datasets aid reproducibility.",
+          "evidence": [
+            "Section 4 notes code is publicly available and many hyperparameters follow Rei et al. (2016); training regime (10 seeds, AdaDelta) is described.",
+            "Datasets and pretrained embeddings sources are listed."
+          ],
+          "confidence": "medium"
+        }
+      ],
+      "concerns": [
+        {
+          "issue_code": "M1",
+          "title": "Lack of statistical significance and dispersion reporting",
+          "description": "Results are averaged over 10 runs but no standard deviations, confidence intervals, or statistical tests are provided; some reported improvements (especially small ones) might be within run variability.",
+          "severity": "major",
+          "evidence": [
+            "Shared analysis and tables present only averaged scores; the shared uncertainty flags repeatedly note absence of variance/significance testing.",
+            "Prior-stage digests by methodology and structure reviewers flagged this as a top concern."
+          ],
+          "actionable_suggestion": "Report per-configuration standard deviations or 95% confidence intervals across the 10 seeds and perform paired significance tests (e.g., bootstrap or approximate randomisation) comparing +LMcost to baselines; where appropriate, show per-run scatter or boxplots for key datasets.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M2",
+          "title": "Incomplete ablation isolating LM effect",
+          "description": "LMcost is reported in combination with dropout in the main tables; LM-only (no dropout) is not systematically evaluated across tasks, so the independent contribution of LM is under-specified.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 4 explains three systems but +LMcost rows include dropout; text mentions dropout hurt error detection alone but helped when combined with LMcost.",
+            "Shared analyses note missing LM-only ablations."
+          ],
+          "actionable_suggestion": "Add experiments that include Baseline+LMcost (without embedding-dropout) across all tasks and datasets, and possibly Baseline+LMcost+other dropout rates, to characterise interactions.",
+          "novelty_risk": false,
+          "methodological_flaw": true,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M3",
+          "title": "No sensitivity analysis for γ and LM training choices",
+          "description": "The paper fixes γ=0.1 based on development experiments but provides no quantitative sweep or curves; optimal weighting may vary by dataset and affect conclusions.",
+          "severity": "moderate",
+          "evidence": [
+            "Section 4 states γ=0.1 was chosen and static γ performed comparably to decaying schedules but provides no numeric comparisons.",
+            "Shared analysis lists γ sensitivity as an evaluation target."
+          ],
+          "actionable_suggestion": "Include a small controlled sweep (e.g., γ in {0.01,0.05,0.1,0.2}) and a comparison of static vs decayed schedules on representative datasets (one sparse-label and one dense-label) to show robustness of γ choice.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M4",
+          "title": "Mechanism claim lacks direct representational evidence",
+          "description": "The central causal explanation—that LMaux induces more general-purpose semantic/syntactic features—is plausible but unsupported by probing analyses or visualization.",
+          "severity": "moderate",
+          "evidence": [
+            "No probing tasks, activation visualisations, or transfer experiments are reported; shared analysis and prior reviewers flagged absence of representation-level analysis.",
+            "Improvements could alternatively arise from regularisation or embedding fine-tuning."
+          ],
+          "actionable_suggestion": "Add targeted analyses: (a) probing classifiers for POS/constituent/semantic properties on hidden states with/without LMaux, (b) ablation where LM heads are frozen after training to test reliance, or (c) nearest-neighbour analyses of context representations to show qualitative changes.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M5",
+          "title": "Ambiguous 'no extra data' claim due to pretrained embeddings",
+          "description": "Statement that no additional unannotated data is required is technically correct for the LM objective, but using pretrained embeddings (external corpora) may confuse attribution; this should be clarified.",
+          "severity": "minor",
+          "evidence": [
+            "Section 4 uses pretrained Google News and PubMed embeddings; shared analysis notes nuance required in phrasing.",
+            "Paper's abstract and conclusion state 'without requiring any additional annotated or unannotated data.'"
+          ],
+          "actionable_suggestion": "Rephrase claims to specify 'LM auxiliary uses the labeled training sentences (no extra unlabeled text beyond commonly-used pretrained embeddings)' and, if possible, report an experiment with randomly initialised embeddings to show LMaux effect without pretrained vectors.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "high"
+        },
+        {
+          "issue_code": "M6",
+          "title": "Training-time and memory overhead unmeasured",
+          "description": "The paper asserts LM parameters only affect training-time but provides no empirical profiling of training runtime, GPU memory usage, or scalability to larger vocabularies.",
+          "severity": "minor",
+          "evidence": [
+            "Section 3 claims no inference impact and suggests NCE/hierarchical softmax for efficiency but no wall-clock or memory numbers are given.",
+            "Shared analysis flagged lack of profiling as uncertainty."
+          ],
+          "actionable_suggestion": "Report training-time per epoch and peak GPU memory for baseline vs +LMcost on representative datasets, and give vocabulary sizes used for LM softmax; discuss practicality for larger corpora and potential approximations (NCE).",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "medium"
+        },
+        {
+          "issue_code": "M7",
+          "title": "Discrepancy in reported numeric improvement for FCE",
+          "description": "Table 1 shows a 4.39 absolute F0.5 increase (48.78→53.17) but text reports 3.9%; inconsistent numbers reduce confidence.",
+          "severity": "minor",
+          "evidence": [
+            "Table 1 entries and Section 5 textual statement disagree on absolute improvement value.",
+            "Shared analysis enumerates this discrepancy as an uncertainty flag."
+          ],
+          "actionable_suggestion": "Correct the numeric inconsistency and clarify whether reported figures are rounded or averaged differently; provide exact decimal values and standard deviations to avoid confusion.",
+          "novelty_risk": false,
+          "methodological_flaw": false,
+          "confidence": "high"
+        }
+      ],
+      "comparable_works": [
+        {
+          "citation_label": "Cheng et al. (2015)",
+          "relevance": "Prior example of predicting next word jointly with another supervised objective (OOV name detection); relates to LM auxiliary idea but uses unidirectional RNN.",
+          "similarity_or_difference": "Similar high-level idea of predicting next word; differs in that current paper integrates LM with bidirectional LSTM halves to avoid trivial context leakage.",
+          "source_trace": "Section 8 mentions Cheng et al. (2015) and differentiates bidirectional integration."
+        },
+        {
+          "citation_label": "Plank et al. (2016)",
+          "relevance": "Predicting word frequency as auxiliary task to improve POS tagging; shows auxiliary supervised signals can help tagging.",
+          "similarity_or_difference": "Auxiliary supervision for token-level tasks is shared rationale; current paper uses LM prediction (richer output space) and applies to multiple sequence labeling tasks.",
+          "source_trace": "Section 8 cites Plank et al. (2016) and compares approaches."
+        },
+        {
+          "citation_label": "Collobert and Weston (2008)",
+          "relevance": "Classic multitask/weight-sharing NN framework motivating multi-task approaches in NLP.",
+          "similarity_or_difference": "Conceptual ancestor (multitask learning) but not specific to LM aux on bi-LSTMs.",
+          "source_trace": "Section 8 references Caruana (1998) and Collobert and Weston (2008) as background."
+        },
+        {
+          "citation_label": "Huang et al. (2015) / Lample et al. (2016)",
+          "relevance": "Strong baselines for BiLSTM-CRF sequence labeling; used for comparative context in results discussion.",
+          "similarity_or_difference": "Methodological baselines rather than auxiliary-LM prior work; Lample et al. achieved higher CoNLL-03 F1 using other techniques/embeddings.",
+          "source_trace": "Sections 2 and 6 mention these baselines and compare results."
+        }
+      ],
+      "uncertainty_flags": [
+        "No statistical tests or variance reported: small gains could be within noise.",
+        "LM-only (without dropout) effect not fully isolated across tasks in presented tables.",
+        "γ selection (0.1) lacks quantitative sensitivity analysis; could be dataset-dependent.",
+        "Pretrained embeddings are external resources; 'no extra unannotated data' claim needs careful wording.",
+        "Training-time/memory overheads for LM softmax are not reported; scalability unclear.",
+        "Discrepancy in reported numeric improvement on FCE (table vs text)."
+      ],
+      "alternative_interpretations": [
+        "Improvements may be due to regularisation effects from multitask learning rather than learning qualitatively different compositional features; LM loss could act to smooth gradients or stabilise optimisation.",
+        "Fine-tuning of pretrained embeddings under the LM objective might produce most gains rather than higher-level compositional features in LSTM layers.",
+        "Interaction with embedding-dropout could be principal driver: LMcost supplies extra signal that mitigates dropout noise, and combination yields net benefit rather than LM alone improving representations substantially."
+      ],
+      "transparency_notes": [
+        "Code is available (Section 4) which aids reproducibility; include seeds used and exact data splits, and ensure scripts to reproduce averaged runs are provided.",
+        "Provide exact vocabulary sizes used for LM softmax and treatment of OOVs; these affect training cost and possibly LM signal strength.",
+        "Clarify whether LM parameter tensors are saved/loaded with inference model objects (practical memory implications)."
+      ],
+      "creativity_safeguard": {
+        "lacks_close_analogs": true,
+        "treat_as_innovation_signal": true,
+        "novelty_not_validity_note": "The idea of using auxiliary objectives is established, but predicting surrounding words from single-direction halves of a BiLSTM to encourage composition is a focused variant with limited close precedence; novelty is plausible but empirical robustness and causal mechanism need further evidence.",
+        "counterfactual_conditions_for_success": [
+          "If label sparsity is high and task labels provide weak per-token signal (e.g., error detection), LM auxiliary will provide informative gradients and lead to notable performance gains.",
+          "If pretrained embeddings are absent or randomly initialised, LM aux could either (a) still help by shaping embedding/LSTM representations from scratch, or (b) be less effective if vocabulary prediction overwhelms limited data—outcome depends on dataset size and vocabulary.",
+          "If γ is too large, LM gradients could dominate and harm task-specialisation; if γ is too small, auxiliary signal is negligible—success depends on balanced weighting and possibly schedule.",
+          "If LM softmax is scaled to massive vocabularies without approximation, training may be impractical; approximations (NCE/hierarchical softmax) may preserve benefits only if training dynamics remain similar."
+        ]
+      },
+      "novelty_lenses": [
+        {
+          "lens": "incremental_algorithmic",
+          "verdict": "plausibly novel increment",
+          "rationale": "Auxiliary losses and multitask training are established; applying directional LM heads to BiLSTM halves to avoid trivial information leakage is a simple but not previously ubiquitous design choice and is a useful incremental contribution.",
+          "evidence": [
+            "Section 3 motivation and comparison to related work (Section 8) that discusses nearby approaches (Cheng et al., Plank et al.)."
+          ],
+          "uncertainty_flags": [
+            "Lack of prior-work retrieval in manuscript prevents definitive statement about exact novelty breadth; novelty appears incremental rather than disruptive."
+          ]
+        },
+        {
+          "lens": "empirical_benchmarking",
+          "verdict": "useful evidence",
+          "rationale": "Consistent cross-task improvements across multiple standard datasets, averaged over multiple seeds, provide empirical support for the method's practicality.",
+          "evidence": [
+            "Tables 1-3 show gains across diverse tasks; training protocol (10 seeds) improves robustness of reported averages."
+          ],
+          "uncertainty_flags": [
+            "Absence of statistical tests and some ablations limits how strongly to interpret small gains."
+          ]
+        }
+      ],
+      "confidence_interval": {
+        "lower": 0.35,
+        "upper": 0.85,
+        "rationale": "I am moderately confident in the main empirical claim that the proposed LM auxiliary commonly improves sequence labeling performance, especially in sparse-label settings. Confidence is reduced by missing statistical significance reporting, some incomplete ablations (LM without dropout), and lack of direct representational analyses to confirm the proposed mechanism. If the authors address variance reporting, add the missing ablations and clarify numeric discrepancies and computational costs, confidence would increase."
+      }
+    }
+  ],
+  "meta_review": {
+    "consensus_findings": [
+      "The proposed auxiliary objective (predict next word from forward LSTM and previous word from backward LSTM) is clearly specified and easy to implement as a lightweight training-time augmentation to standard bi-LSTM sequence labelers.",
+      "Empirical results reported across eight datasets (error detection, NER, chunking, POS) show consistent average improvements for the configuration that includes both embedding dropout and the LM auxiliary objective versus the baseline and versus baseline+dropout.",
+      "The largest absolute improvements are observed for the sparse-label error-detection task (FCE / CoNLL-14), consistent with the paper's explanation that denser per-token LM supervision helps when task labels are sparse.",
+      "The LM heads are designed to be unused at inference, so the claimed inference-time computation is unchanged in principle.",
+      "The manuscript provides substantial reproducibility-relevant detail (architectural equations, hyperparameters, training regime, averaging over 10 random seeds) and public code, which materially aids replication."
+    ],
+    "disagreements": [
+      "Whether reported improvements are statistically reliable: several reviewers flagged absence of standard deviations/confidence intervals and hypothesis tests and disagreed about how convincing the averaged improvements are without variance reporting.",
+      "The independence of the LM auxiliary effect from embedding dropout: reviewers noted LM results are presented combined with dropout in the main tables and thus disagreed on whether gains stem from LM alone, dropout alone, or their interaction; some reviewers flagged that LM-only ablations are missing.",
+      "Interpretation of mechanism (LM induces 'general-purpose semantic/syntactic' features) vs alternative explanations: reviewers disagree about whether representational change is demonstrated. Some treat downstream gains as suggestive evidence; others require probing/diagnostic analyses to accept the mechanism claim.",
+      "Strength of the 'no extra data' claim: reviewers differ on whether the claim is potentially misleading because pretrained embeddings (external unannotated corpora) are used; some urge nuanced wording while others accept the claim conditioned on that nuance.",
+      "Validity of SOTA claims and exact effect size on FCE: reviewers noted a numeric inconsistency (table arithmetic vs textual statement) and disagreed whether the paper sufficiently documents comparisons to prior SOTA methods under identical conditions."
+    ],
+    "uncertainty_hotspots": [
+      "Absence of variance/statistical testing: no per-configuration standard deviations, confidence intervals, or paired tests reported, so the reliability of small-to-moderate improvements is uncertain.",
+      "Incomplete ablation matrix: LM-only (no dropout) results not consistently shown across tasks; the interaction strength between dropout and LM auxiliary is an open question.",
+      "γ (LM-weight) sensitivity: the choice γ=0.1 is asserted from development experiments but no sweep or quantitative sensitivity analysis is provided; optimal γ may be dataset-dependent.",
+      "Representation-level mechanism: no probing, visualization, or transfer analyses were run to substantiate the claim that LMaux yields qualitatively different or more general-purpose hidden representations.",
+      "Training-time and memory costs: claims that LM parameters only increase training cost (and not inference cost) are qualitative—no wall-clock timing, parameter counts, or peak memory measurements are provided.",
+      "Potential trivial LM shortcuts / leakage: the architectural reasoning (predict from single-direction halves) is plausible but no LM training metrics (perplexity/accuracy) are provided to show the auxiliary is nontrivial and driving composition learning rather than exploiting shortcuts.",
+      "Interaction with pretrained embeddings: pretrained vectors are used and likely fine-tuned; it is uncertain how much of the effect comes from LM-induced embedding adaptation versus higher-level LSTM representation changes.",
+      "SOTA and numeric consistency: the reported absolute gain on FCE has inconsistent numbers and the SOTA claim is not exhaustively contextualised against prior works with identical evaluation protocols."
+    ],
+    "model_diversity_effects": [
+      "Role-specific emphases: structure/logic-focused reviewers emphasized coherence of the argument and missing causal links (probing), methodology-focused reviewers emphasised reproducibility/ablation/statistics gaps, and novelty-focused reviewers framed the advance as an incremental but useful variant. These role differences produced systematic variation in priorities: e.g., methodology reviewers rated lack of variance reporting as a major flaw, while novelty reviewers were more tolerant of missing probes if empirical gains are evident.",
+      "Aggregate effect on credibility: the diversity of reviewer foci strengthens the paper's empirical credibility (multiple tasks, seeds, code) but exposes methodological gaps that are salient to reproducibility/causal interpretation—this combination increases confidence in the core engineering contribution but reduces confidence in mechanistic claims and exact effect sizes.",
+      "Practical-adoption signal vs scientific-mechanism signal: engineering/practical lenses view the approach as low-friction and potentially useful (since inference unchanged), while representational/mechanistic lenses urge additional analyses. Divergence implies the method may be adopted pragmatically before its internal mechanisms are fully characterized."
+    ],
+    "editor_guidance": "Treat the manuscript as an empirically promising, low-complexity training augmentation that warrants careful verification rather than unconditional endorsement of mechanistic claims. Prioritise requests that address the largest uncertainty hotspots: (1) require reporting of per-experiment variance (standard deviations or confidence intervals) and statistical comparisons (paired tests or bootstrap) for the key dataset-level results—especially the FCE error-detection improvements; (2) request a complete 2x2 ablation (no dropout / dropout × no LM / LM only / LM+dropout) on representative datasets (at minimum: one sparse-label error-detection dataset and one NER dataset) to isolate LM vs dropout effects; (3) ask for quantitative sensitivity analysis over γ (a small sweep) and note whether static vs decaying schedules change results; (4) ask for clarification / correction of numeric inconsistencies (FCE delta) and more explicit contextualisation of any SOTA claims (list exact prior numbers and confirm identical evaluation conditions). Defer judgement about claimed representation-level mechanisms until authors provide probing or transfer analyses; treat the representation claim as a hypothesis requiring additional evidence. If constrained on revision length, prioritise (1)-(3) and the numeric/SOTA clarifications—these affect reproducibility and core empirical claims most directly.",
+    "author_guidance": "To strengthen evidential support and reduce reviewers' uncertainty, provide the following targeted additions: (A) Statistical reporting: for all main-table numbers include standard deviations (or 95% CIs) across the 10 runs and report paired statistical tests comparing Baseline+dropout vs +LM variants for each dataset; (B) Ablations: add Baseline+LMcost (no dropout) rows and, if space permits, a full 2x2 ablation (dropout on/off × LM on/off) for representative datasets (error detection and one NER); (C) γ sensitivity: include results for a small sweep of γ values (e.g., 0.01, 0.05, 0.1, 0.2) and at least one decaying schedule plot or table to show robustness; (D) Training diagnostics: report LM training metrics (perplexity/accuracy on train/val) to demonstrate the LM task is nontrivial and not trivially solved, and provide parameter counts plus wall-clock training-time per epoch and peak GPU memory for baseline vs +LM to quantify overhead; (E) Mechanism probes: include at least one representational analysis (e.g., simple probing classifiers for POS/NER-related signals on hidden states, or nearest-neighbour/contextual similarity comparisons) to test whether hidden representations qualitatively change with LMaux; (F) Clarify 'no extra data' wording to acknowledge use of pretrained embeddings and, if possible, add a run with random-initialized embeddings or frozen embeddings to test interactions; (G) Correct numeric inconsistencies (e.g., FCE delta) and explicitly list prior SOTA numbers and the evaluation conditions used for SOTA comparisons. Prioritise (A)-(C) and the numeric/SOTA corrections if revisions must be concise.",
+    "transparency_report": [
+      "Positive transparency items: the manuscript gives explicit architecture equations, hyperparameters (LSTM sizes, optimizer, batch size), training regimen (10 seeds, early stopping), dataset lists, and public code—these materially support reproducibility.",
+      "Missing or underreported items: no per-run variance/standard deviations or hypothesis tests; γ sweep and decaying-schedule experimental data absent; LM softmax vocabulary size, handling of rare/OOV tokens, and whether LM outputs share embedding matrices are not fully enumerated; no wall-clock training-time, parameter counts or peak memory usage reported; exact scripts for reproducing averaged runs and random seeds details in the public repo were not described in the manuscript.",
+      "Suggested minimal transparency updates: include per-system seeds used, per-run metric logs, exact vocab sizes and OOV treatment for LM softmax, whether LM softmax reuses input embeddings, and an explicit README with commands to reproduce averaged results and the hardware used."
+    ],
+    "epistemic_limits": [
+      "The synthesis is bounded by the information provided in the manuscript and specialist reviews: (1) I do not have access to raw per-run logs, code execution, or the authors' unpublished development experiments, so claims about stability and γ tuning rely on author statements rather than verified runs; (2) absence of variance/statistics in the manuscript prevents definitive statements about the statistical significance of reported improvements—reviewers' concerns about robustness remain unresolved without additional data; (3) mechanistic inferences (that LMaux produces 'general-purpose semantic/syntactic' features) are speculative until probing/transfer analyses are provided; observed downstream gains are compatible with multiple mechanisms (regularisation, embedding adaptation, richer representation), and the present evidence cannot disambiguate them fully; (4) claims about computational overhead are qualitative—no empirical profiling was shared, so practical deployment implications (training time, memory) are uncertain. These epistemic limits indicate the key uncertainties that targeted revisions and additional experiments (variance reporting, ablations, γ sensitivity, LM training diagnostics, representation probes, timing) can most directly resolve."
+    ]
+  },
+  "human_facing_meta_review": {
+    "is_meta_review": true,
+    "summary": "The paper proposes a lightweight multitask augmentation to bidirectional LSTM sequence labelers: train the forward LSTM to predict the next word and the backward LSTM to predict the previous word, add these LM losses to the labeling loss with weight γ (set to 0.1), and apply embedding dropout. Evaluated across eight datasets (error detection, NER, chunking, POS) with models averaged over 10 seeds, the LM auxiliary + dropout variant consistently improves metrics relative to the baseline and baseline+dropout, with the largest absolute gains on sparse-label error detection (FCE / CoNLL-14). The LM heads are used only during training and claimed to incur training-time overhead but no inference-time cost. The paper provides architecture equations, implementation details, and public code. Major methodological gaps identified by reviewers include missing variance/statistical tests, incomplete ablations (LM without dropout), lack of γ sensitivity reporting, no training-time/memory profiling, and no representational probes to validate the proposed mechanism that LMaux yields more general-purpose compositional features.",
+    "strengths": [
+      "Clear, minimal architectural modification: forwards/backwards LM heads applied to single-direction LSTM halves are precisely specified (equations and diagram) and easy to implement as a training-time augmentation.",
+      "Broad empirical evaluation: experiments span 8 standard datasets across four tasks (error detection, NER, chunking, POS) and include in-/out-of-domain checks (FCE -> CoNLL-14).",
+      "Reproducibility-oriented reporting: many hyperparameters, training protocol (10 seeds, early stopping), and baseline codebase are listed and authors state code release, which materially aids replication.",
+      "Practical deployment consideration: design ensures LM components are unused at inference, making the approach attractive for practitioners if training overhead is acceptable."
+    ],
+    "limitations": [
+      "No uncertainty quantification: reported numbers are averages over 10 seeds but the manuscript omits standard deviations, confidence intervals, or paired statistical tests. This prevents assessing whether observed improvements (especially modest ones) reliably exceed run-to-run variability.",
+      "Incomplete ablation matrix: the main result rows show +LMcost combined with embedding dropout; Baseline+LMcost (without dropout) is not consistently reported across tasks, so the independent contribution of the LM auxiliary versus its interaction with dropout is unclear.",
+      "γ selection and sensitivity underreported: γ is fixed to 0.1 per the text but no quantitative sweep or sensitivity curves are provided to show robustness across datasets or whether decaying schedules change outcomes.",
+      "Mechanism not directly evidenced: the claim that LMaux induces more general-purpose semantic/syntactic representations is plausible but unsupported by representational analyses (probing classifiers, visualization, or transfer experiments) that could disambiguate alternative explanations (regularisation, embedding fine-tuning).",
+      "Computational cost claims unmeasured: the paper states LM parameters increase training-time computation but not inference cost; no empirical profiling (parameter counts, wall-clock epoch times, or peak memory) is provided to quantify the training overhead or practical scalability (e.g., full softmax over vocab).",
+      "Ambiguous wording around 'no extra data': while the LM objective uses only labeled training sentences, pretrained word embeddings (Google News, PubMed) are external unannotated resources; the manuscript should clarify this nuance and, ideally, report controlled runs (random-init or frozen embeddings)."
+    ],
+    "open_questions": [
+      "Please provide per-configuration dispersion measures: what are the standard deviations or 95% confidence intervals across the 10 random-seed runs for all reported metrics, and do paired significance tests (e.g., bootstrap or paired t-test) indicate the +LMcost gains are statistically significant compared to baseline+dropout (particularly for FCE)?",
+      "Can the authors report a complete 2×2 ablation (dropout on/off × LM auxiliary on/off) on at least two representative datasets (one sparse-label error-detection dataset and one NER dataset) to isolate the independent and interaction effects of LMaux and embedding dropout?",
+      "Please provide a γ sensitivity study: results for γ ∈ {0.01, 0.05, 0.1, 0.2} and at least one decaying schedule on representative datasets, with dev/test metrics and training dynamics, to justify universal use of γ=0.1.",
+      "Report LM training diagnostics and nontriviality checks: what are LM training/validation perplexities or accuracies? Do these show the LM task is nontrivial and not solved by trivial shortcuts? Provide examples/analysis if possible.",
+      "Provide computational profiling: parameter counts added by LM heads, wall-clock training time per epoch (baseline vs +LMcost), and peak GPU memory usage. Also clarify whether LM softmax reuses input embeddings or has separate output embeddings and how OOVs are handled.",
+      "To support the representational-mechanism claim, can the authors include at least one probing analysis (e.g., diagnosing POS/constituent/NER signal in hidden states with and without LMaux) or a qualitative nearest-neighbour/context example demonstrating changed contextual encoding?"
+    ],
+    "consensus_snapshot": [
+      "The method is clearly specified and easy to implement; it is a lightweight training-time augmentation to bi-LSTM sequence labelers.",
+      "Averaged empirical results across eight datasets show consistent improvements for the variant that combines embedding dropout and the LM auxiliary objective versus baseline and baseline+dropout, with the largest absolute gains for sparse-label error detection tasks.",
+      "Authors provided useful reproducibility details (hyperparameters, seeds, code availability) that enable further verification.",
+      "Key methodological weaknesses are the omission of variance/statistical testing, incomplete ablations isolating LM effects, lack of γ sensitivity reporting, missing training-time/memory profiling, and absence of representation-level analyses."
+    ],
+    "disagreement_snapshot": [
+      "Some reviewers view the empirical gains as sufficiently convincing given multi-dataset consistency and averaging over 10 seeds; others consider the absence of dispersion measures and LM-only ablations major impediments to interpreting the results.",
+      "There is disagreement about the severity of the pretrained-embeddings nuance: some reviewers see the 'no extra data' claim as acceptable with clarification, others see pretrained embeddings as a confound that should be experimentally controlled (e.g., random-init runs).",
+      "Reviewers differ on whether the mechanistic claim (LMaux yields general compositional features) is acceptably supported by downstream performance alone: some accept downstream gains as suggestive, others require direct representational probes."
+    ],
+    "uncertainty_snapshot": [
+      "Statistical reliability of reported improvements: without standard deviations and hypothesis tests it is uncertain which gains are robust versus within noise.",
+      "Interaction effect between LMaux and embedding dropout: missing LM-only rows mean the dependence of gains on dropout is unresolved.",
+      "Appropriateness and universality of γ=0.1: absence of sweep results leaves uncertainty whether a single γ is optimal across tasks.",
+      "Mechanistic attribution: improvements could come from multiple mechanisms (regularisation, embedding fine-tuning, representation change); current evidence cannot disambiguate them.",
+      "Training-time scalability: full-softmax LM over vocabularies may be costly; no empirical measurements are provided to assess training overhead or practicality at scale."
+    ],
+    "source_trace": [
+      "Cheng et al. (2015) — prior use of next-word prediction as auxiliary signal (paper mentions this related work in Section 8).",
+      "Plank et al. (2016) — prior auxiliary task (predicting word frequency) for POS improvement, cited in Section 8 and compared in shared analysis.",
+      "Collobert & Weston (2008) / Caruana (1998) — foundational multitask / weight-sharing literature referenced in Section 8.",
+      "Lample et al. (2016) and Huang et al. (2015) — strong sequence-labeling baselines (bi-LSTM-CRF) used as comparative context in Sections 2 and 6.",
+      "Rei et al. (2016) — baseline implementation/code base stated as used for model and hyperparameter choices (Section 4)."
+    ],
+    "transparency_notes": [
+      "Positive transparency: equations, model architecture, many hyperparameters, dataset lists, training regime (10 seeds, early stopping), and code release are reported. Missing details that hamper reproducibility/interpretation include: per-run logs and standard deviations for reported metrics; γ-sweep and decaying-schedule results; LM softmax vocabulary size and handling of OOVs; whether LM output embeddings share input embeddings; exact parameter counts; wall-clock training times and peak memory usage; and scripts to reproduce averaged runs and seeds. Correcting numeric inconsistencies (e.g., FCE delta) and adding the items above would materially improve transparency."
+    ],
+    "editor_guidance": "Treat this manuscript as an empirically promising, low-complexity training augmentation with practical appeal but with methodological gaps that affect interpretability. Request a revision that prioritises: (1) reporting variance (std. dev. or 95% CIs) and paired statistical tests for key dataset comparisons (especially FCE); (2) adding a minimal 2×2 ablation (dropout on/off × LM on/off) for representative datasets to isolate LM and dropout effects; (3) a γ sensitivity sweep (small set of values and at least one decaying schedule) to justify γ=0.1; and (4) correction/clarification of numeric inconsistencies and the precise basis for any SOTA claims (list prior numbers and evaluation parity). If space/budget is tight, require at least (1)-(3) and the numeric/SOTA clarifications. Defer acceptance-related decisions until those items are addressed. Representation-level probes and full profiling are strongly encouraged but may be lower priority if revision space is limited.",
+    "author_guidance": "To strengthen the manuscript and reduce reviewers' main uncertainties, provide the following in a revision: (A) Statistical reporting: add standard deviations or 95% confidence intervals across the 10 runs for all table entries and perform paired significance tests (e.g., bootstrap or paired t-test) versus baseline+dropout for each dataset; (B) Ablations: report Baseline+LMcost (no dropout) and, if feasible, the full 2×2 matrix (dropout on/off × LM on/off) on at least two representative datasets (one sparse-label error-detection and one NER); (C) γ sensitivity: include a small sweep (e.g., γ ∈ {0.01, 0.05, 0.1, 0.2}) and show whether static vs decaying schedules materially change results; (D) LM diagnostics: report LM train/validation perplexities or accuracies and examples to show the LM task is nontrivial; (E) Computational profiling: provide parameter counts added by LM heads, wall-clock training time per epoch (baseline vs +LM), and peak GPU memory; state whether LM softmax reuses input embeddings and how OOVs are handled; (F) Clarify the 'no extra data' phrasing to explicitly note use of pretrained embeddings and, if possible, add a run with random-initialized embeddings or frozen pretrained embeddings to test interactions; (G) Fix numeric inconsistencies (e.g., FCE delta) and explicitly list prior SOTA numbers, evaluation scripts/splits, and how comparisons were controlled. Prioritise (A)-(C) and numeric/SOTA corrections if revision length is constrained.",
+    "comments": "Summary: The paper introduces a simple, well-specified auxiliary LM objective applied to forward/backward halves of a bi-LSTM and shows consistent averaged metric improvements across eight sequence-labeling datasets, with the largest gains on sparse-label error detection. Strengths: clear architecture and formulation, broad multi-dataset empirical evaluation, reproducibility-oriented details and code, and practical design that avoids inference-time overhead. Limitations: lack of variance/statistical testing; incomplete ablation (LM without dropout not consistently reported); missing γ sensitivity data; no representational probes to validate mechanistic claims; absent training-time/memory profiling; and ambiguous phrasing about 'no extra data' given pretrained embeddings. Open Questions: (1) Provide per-run dispersion and paired statistical tests for all main results—are gains significant? (2) Add Baseline+LMcost (no dropout) and preferably a full 2×2 ablation for representative datasets to isolate LM vs dropout effects. (3) Supply a γ sensitivity sweep and at least one decaying schedule comparison. (4) Report LM training metrics (perplexity/accuracy) and examples to show the LM objective is nontrivial. (5) Provide parameter counts, wall-clock training time per epoch, and peak GPU memory for baseline vs +LMcost. (6) Clarify pretrained-embedding interactions (random-init/freeze experiments) and correct numeric inconsistencies (e.g., FCE improvement value). Transparency: manuscript supplies many reproducibility details and code, but missing per-run logs, seeds, LM softmax vocab/OOV handling, sharing/tying of embeddings, and timing stats should be added. The requested revisions (especially statistical reporting and ablations) will materially increase confidence that observed gains are robust and that the method's practical costs are acceptable.",
+    "confidence_interval": {
+      "lower": 0.35,
+      "upper": 0.85,
+      "rationale": "Confidence reflects the strong internal consistency and multi-dataset empirical pattern reported and the reviewers' agreement on core implementation and experimental protocol. Confidence is reduced by missing variance/statistical tests, incomplete ablations (LM without dropout), absent γ sensitivity data, and lack of representational and profiling analyses—items that materially affect interpretation and reproducibility. Addressing the prioritized revisions would raise confidence toward the upper bound."
+    }
+  },
+  "audit": {
+    "corpus_contexts": {},
+    "prompt_execution_trace": [
+      {
+        "stage": "meta_classification",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.1,
+        "role": "paper_classifier",
+        "input_stages": [
+          "manuscript"
+        ],
+        "notes": [
+          "Infers paper type, epistemic stance, and contribution style before downstream prompting."
+        ]
+      },
+      {
+        "stage": "shared_analysis",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.1,
+        "role": "shared_claims_and_assumptions_extractor",
+        "input_stages": [
+          "meta_classification",
+          "manuscript"
+        ],
+        "notes": [
+          "Extracts shared claims and assumptions for downstream prompt chaining."
+        ]
+      },
+      {
+        "stage": "specialist_review",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.15,
+        "role": "structure_analyst",
+        "input_stages": [
+          "meta_classification",
+          "shared_analysis",
+          "external_q1q2_retrieval_context",
+          "review_guidelines_retrieval_context"
+        ],
+        "notes": [
+          "Variant: logical-coherence-first",
+          "Reviewer label: GPT",
+          "Shared extraction stage is injected to preserve cross-review coherence.",
+          "Literature query: Does adding a secondary unsupervised language-modeling objective (predicting surrounding words using the forward/backward halves of a bi-LSTM) during training improve performance of neural sequence labeling models across tasks (error detection, NER, chunking, POS) without extra data? paper structure logical flow section consistency argument continuity",
+          "Guideline query: structure_analyst logical-coherence-first paper structure logical flow section consistency argument continuity",
+          "Retrieved evidence comes from a dual runtime path: curated Q1/Q2 literature plus reviewer-guideline corpora in Qdrant."
+        ]
+      },
+      {
+        "stage": "specialist_review",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.2,
+        "role": "methodology_auditor",
+        "input_stages": [
+          "meta_classification",
+          "shared_analysis",
+          "external_q1q2_retrieval_context",
+          "review_guidelines_retrieval_context"
+        ],
+        "notes": [
+          "Variant: reproducibility-and-validity-first",
+          "Reviewer label: GPT",
+          "Shared extraction stage is injected to preserve cross-review coherence.",
+          "Literature query: Does adding a secondary unsupervised language-modeling objective (predicting surrounding words using the forward/backward halves of a bi-LSTM) during training improve performance of neural sequence labeling models across tasks (error detection, NER, chunking, POS) without extra data? assumptions model choices statistical validity reproducibility robustness evaluation",
+          "Guideline query: methodology_auditor reproducibility-and-validity-first assumptions model choices statistical validity reproducibility robustness evaluation",
+          "Retrieved evidence comes from a dual runtime path: curated Q1/Q2 literature plus reviewer-guideline corpora in Qdrant."
+        ]
+      },
+      {
+        "stage": "specialist_review",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.35,
+        "role": "novelty_assessor_incremental",
+        "input_stages": [
+          "meta_classification",
+          "shared_analysis",
+          "external_q1q2_retrieval_context",
+          "review_guidelines_retrieval_context"
+        ],
+        "notes": [
+          "Variant: incremental-contribution lens",
+          "Reviewer label: GPT",
+          "Shared extraction stage is injected to preserve cross-review coherence.",
+          "Literature query: Does adding a secondary unsupervised language-modeling objective (predicting surrounding words using the forward/backward halves of a bi-LSTM) during training improve performance of neural sequence labeling models across tasks (error detection, NER, chunking, POS) without extra data? extends existing paradigms semantic overlap comparable works incremental contribution",
+          "Guideline query: novelty_assessor_incremental incremental-contribution lens extends existing paradigms semantic overlap comparable works incremental contribution",
+          "Retrieved evidence comes from a dual runtime path: curated Q1/Q2 literature plus reviewer-guideline corpora in Qdrant."
+        ]
+      },
+      {
+        "stage": "specialist_review",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.45,
+        "role": "novelty_assessor_disruptive",
+        "input_stages": [
+          "meta_classification",
+          "shared_analysis",
+          "external_q1q2_retrieval_context",
+          "review_guidelines_retrieval_context"
+        ],
+        "notes": [
+          "Variant: disruptive-thinking lens",
+          "Reviewer label: GPT",
+          "Shared extraction stage is injected to preserve cross-review coherence.",
+          "Literature query: Does adding a secondary unsupervised language-modeling objective (predicting surrounding words using the forward/backward halves of a bi-LSTM) during training improve performance of neural sequence labeling models across tasks (error detection, NER, chunking, POS) without extra data? new conceptual frame divergent ideas sparse precedent creative contribution",
+          "Guideline query: novelty_assessor_disruptive disruptive-thinking lens new conceptual frame divergent ideas sparse precedent creative contribution",
+          "Retrieved evidence comes from a dual runtime path: curated Q1/Q2 literature plus reviewer-guideline corpora in Qdrant."
+        ]
+      },
+      {
+        "stage": "specialist_review",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.1,
+        "role": "claim_verifier",
+        "input_stages": [
+          "meta_classification",
+          "shared_analysis",
+          "external_q1q2_retrieval_context",
+          "review_guidelines_retrieval_context",
+          "specialist_review_digests"
+        ],
+        "notes": [
+          "Variant: evidence-and-uncertainty-first",
+          "Reviewer label: GPT",
+          "Shared extraction stage is injected to preserve cross-review coherence.",
+          "Literature query: Does adding a secondary unsupervised language-modeling objective (predicting surrounding words using the forward/backward halves of a bi-LSTM) during training improve performance of neural sequence labeling models across tasks (error detection, NER, chunking, POS) without extra data? claim verification evidence support overstatement literature cross-check",
+          "Guideline query: claim_verifier evidence-and-uncertainty-first claim verification evidence support overstatement literature cross-check",
+          "Retrieved evidence comes from a dual runtime path: curated Q1/Q2 literature plus reviewer-guideline corpora in Qdrant."
+        ]
+      },
+      {
+        "stage": "meta_review",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.2,
+        "role": "pluralistic_meta_reviewer",
+        "input_stages": [
+          "meta_classification",
+          "shared_analysis",
+          "specialist_reviews"
+        ],
+        "notes": [
+          "Synthesizes agreement, contradiction, and uncertainty rather than collapsing to a single verdict."
+        ]
+      },
+      {
+        "stage": "human_facing_meta_review",
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "temperature": 0.15,
+        "role": "human_style_meta_reviewer",
+        "input_stages": [
+          "meta_classification",
+          "shared_analysis",
+          "specialist_reviews",
+          "meta_review"
+        ],
+        "notes": [
+          "Exports a final expert-facing analytical synthesis with no scores and explicit transparency notes."
+        ]
+      }
+    ]
+  }
+}

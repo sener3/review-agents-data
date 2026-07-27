@@ -16,13 +16,12 @@ load_dotenv(ROOT / ".env")
 
 PDFS_DIR = ROOT / "data" / "pdfs"
 OUTPUT_DIR = ROOT / "data" / "gpt-reviews"
-MAX_FILES = 50
 MODEL_NAME = "gpt-5-mini"
 OUTPUT_SUFFIX = ".review.json"
 SAMPLE_MANIFEST = ROOT / "data" / "evaluation-sample-100.json"
 
-EXPECTED_ORIGINAL = 50
-EXPECTED_ADDITIONAL = 50
+EXPECTED_ORIGINAL = 0
+EXPECTED_ADDITIONAL = 100
 EXPECTED_TOTAL = 100
 
 def load_sample_manifest() -> dict:
